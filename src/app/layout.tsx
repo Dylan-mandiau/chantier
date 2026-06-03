@@ -17,6 +17,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Chantier Insight — SALTI",
   description: "Intelligence terrain pour les commerciaux SALTI",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Chantier",
+  },
+};
+
+export const viewport = {
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
