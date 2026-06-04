@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DeleteChantierButton } from "@/components/delete-chantier-button";
+import { Pencil } from "lucide-react";
 
 // Le typage auto-généré de Supabase ne sait pas inférer la jointure
 // `entreprise:entreprises(...)` (alias + relation belongs-to), donc on annote
@@ -59,9 +61,20 @@ export default async function ChantierDetailPage({
 
   return (
     <main className="container max-w-2xl mx-auto p-4 space-y-4">
-      <Link href="/">
-        <Button variant="ghost" size="sm">← Retour</Button>
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link href="/">
+          <Button variant="ghost" size="sm">← Retour</Button>
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/chantiers/${id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="size-3.5 mr-1" />
+              Modifier
+            </Button>
+          </Link>
+          <DeleteChantierButton chantierId={id} chantierTitre={chantier.titre} />
+        </div>
+      </div>
 
       {signed?.signedUrl && (
         <Card>
