@@ -4,7 +4,26 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+
+// Le typage auto-généré de Supabase ne sait pas inférer la jointure
+// `entreprise:entreprises(...)` (alias + relation belongs-to), donc on annote
+// le retour explicitement avec .returns<T>().
+type IntervenantRow = {
+  id: string;
+  role: string;
+  lot_numero: string | null;
+  lot_intitule: string | null;
+  rang: number;
+  ordre: number | null;
+  entreprise: {
+    id: string;
+    raison_sociale: string;
+    telephone: string | null;
+    email: string | null;
+    ville: string | null;
+  } | null;
+};
 
 export default async function ChantierDetailPage({
   params,
@@ -31,7 +50,8 @@ export default async function ChantierDetailPage({
        entreprise:entreprises(id, raison_sociale, telephone, email, ville)`
     )
     .eq("chantier_id", id)
-    .order("ordre", { ascending: true });
+    .order("ordre", { ascending: true })
+    .returns<IntervenantRow[]>();
 
   const { data: signed } = await supabase.storage
     .from("chantier-photos")
@@ -95,14 +115,20 @@ export default async function ChantierDetailPage({
                 <p className="font-medium">{ent.raison_sociale}</p>
                 <div className="flex flex-wrap gap-2">
                   {ent.telephone && (
-                    <Button asChild variant="outline" size="sm">
-                      <a href={`tel:${ent.telephone}`}>📞 {ent.telephone}</a>
-                    </Button>
+                    <a
+                      href={`tel:${ent.telephone}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      📞 {ent.telephone}
+                    </a>
                   )}
                   {ent.email && (
-                    <Button asChild variant="outline" size="sm">
-                      <a href={`mailto:${ent.email}`}>📧 {ent.email}</a>
-                    </Button>
+                    <a
+                      href={`mailto:${ent.email}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      📧 {ent.email}
+                    </a>
                   )}
                 </div>
               </div>

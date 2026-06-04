@@ -5,6 +5,18 @@ import { Button } from "@/components/ui/button";
 import { ChantierCard } from "@/components/chantier-card";
 import { Plus } from "lucide-react";
 
+// Le typage auto-généré de Supabase ne sait pas inférer l'agrégat
+// `chantier_intervenants(count)`, donc on annote explicitement.
+type ChantierListItem = {
+  id: string;
+  titre: string;
+  ville: string | null;
+  code_postal: string | null;
+  photo_principale_url: string;
+  created_at: string;
+  chantier_intervenants: { count: number }[];
+};
+
 export default async function HomePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,7 +29,8 @@ export default async function HomePage() {
        chantier_intervenants(count)`
     )
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(30)
+    .returns<ChantierListItem[]>();
 
   const enriched = await Promise.all(
     (chantiers ?? []).map(async (c) => {
@@ -27,8 +40,7 @@ export default async function HomePage() {
       return {
         ...c,
         signedUrl: signed?.signedUrl ?? null,
-        nbIntervenants:
-          (c.chantier_intervenants as unknown as { count: number }[])?.[0]?.count ?? 0,
+        nbIntervenants: c.chantier_intervenants?.[0]?.count ?? 0,
       };
     })
   );
