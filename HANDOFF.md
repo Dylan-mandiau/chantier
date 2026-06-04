@@ -237,6 +237,16 @@ bloqué tant qu'il ne clique pas dedans.
 **Non-bloquant** : on utilise `<form action>` natif + server actions partout. Ajoute le
 composant manuellement si besoin pour les futurs écrans.
 
+### 5.8 `next dev` ne bloque pas sur les erreurs TypeScript — toujours `npm run build` avant push
+**Symptôme** : le build Vercel échoue avec `Failed to type check` alors que tout marche en `npm run dev` et que `npx tsc --noEmit` passe.
+**Cause** : `next dev` n'applique pas le type-check de manière bloquante (juste warnings). Seul `next build` (que Vercel exécute) le fait. De plus, Next 16 a son propre type-checker en plus de `tsc`, plus strict sur certains patterns.
+**Bonnes pratiques** :
+- **Toujours** lancer `env -u ANTHROPIC_API_KEY npm run build` avant `git push` si Vercel auto-déploie. C'est 30 sec qui évitent un échec de prod.
+- Patterns connus qui passent en dev mais cassent en build :
+  - Jointures Supabase avec alias (`entreprise:entreprises(...)`) ou agrégats (`chantier_intervenants(count)`) → annoter avec `.returns<TypeExplicit[]>()` (voir `src/app/page.tsx` et `src/app/chantiers/[id]/page.tsx` pour exemple).
+  - `<Button asChild>` avec shadcn récent (qui utilise `@base-ui/react` au lieu de `@radix-ui/react-slot`) → utiliser `<a className={buttonVariants(...)}>` à la place.
+  - Conflits de types entre `vite` (Vite 7/rolldown) racine et le `vite` interne à `vitest` → exclure `vitest.config.ts` et `tests/**` de `tsconfig.json` (le check tests reste dans `npm test`).
+
 ### 5.7 `ANTHROPIC_API_KEY` est écrasée par le shell Claude Code (dev local)
 **Symptôme** : `POST /api/analyze` retourne 500 avec `Could not resolve authentication method. Expected one of apiKey, authToken, credentials, config, or profile to be set.`
 **Cause** : quand on lance `npm run dev` depuis un shell intégré à Claude Code, l'environnement du process inclut déjà `ANTHROPIC_API_KEY=` (chaîne vide) injectée par le runtime Claude Code. **Node 22 `--env-file` n'écrase pas les variables déjà présentes** dans `process.env`. Résultat : `process.env.ANTHROPIC_API_KEY === ""` malgré `.env.local` correctement rempli.
