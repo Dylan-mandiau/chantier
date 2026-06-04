@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { analyzePanneau } from "@/lib/ai/claude";
+// Switch IA : Gemini 2.5 Flash (~10× moins cher que Claude Sonnet 4.6).
+// Pour revenir à Claude : remplacer "gemini" par "claude" ci-dessous.
+import { analyzePanneau } from "@/lib/ai/gemini";
 import { z } from "zod";
 
 const RequestSchema = z.object({
