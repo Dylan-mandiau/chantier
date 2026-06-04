@@ -237,6 +237,29 @@ bloqué tant qu'il ne clique pas dedans.
 **Non-bloquant** : on utilise `<form action>` natif + server actions partout. Ajoute le
 composant manuellement si besoin pour les futurs écrans.
 
+### 5.7 `ANTHROPIC_API_KEY` est écrasée par le shell Claude Code (dev local)
+**Symptôme** : `POST /api/analyze` retourne 500 avec `Could not resolve authentication method. Expected one of apiKey, authToken, credentials, config, or profile to be set.`
+**Cause** : quand on lance `npm run dev` depuis un shell intégré à Claude Code, l'environnement du process inclut déjà `ANTHROPIC_API_KEY=` (chaîne vide) injectée par le runtime Claude Code. **Node 22 `--env-file` n'écrase pas les variables déjà présentes** dans `process.env`. Résultat : `process.env.ANTHROPIC_API_KEY === ""` malgré `.env.local` correctement rempli.
+
+**Fix dev local** :
+```bash
+# Au lieu de `npm run dev` :
+env -u ANTHROPIC_API_KEY npm run dev
+# OU le script raccourci ajouté au package.json :
+npm run dev:cc
+```
+
+**Diagnostic rapide** :
+```bash
+node --env-file=.env.local -e "console.log('len:', (process.env.ANTHROPIC_API_KEY||'').length)"
+# Si len: 0 alors que .env.local contient la clé → tu es dans ce cas
+unset ANTHROPIC_API_KEY  # ou redémarrer dans un shell vierge
+```
+
+**Vercel n'est PAS impacté** : pas de var système héritée en prod, `process.env.ANTHROPIC_API_KEY` est lu depuis les Environment Variables Vercel directement.
+
+**Note** : si tu ouvres un terminal Windows natif (PowerShell, cmd, ou Git Bash) hors de Claude Code, le problème n'existe pas non plus (sauf si tu as toi-même défini la var).
+
 ---
 
 ## 6. Comment continuer
