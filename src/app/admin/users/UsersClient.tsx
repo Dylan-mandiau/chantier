@@ -16,7 +16,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2, Save, Building2, Users } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Trash2,
+  Save,
+  Building2,
+  Users,
+  UserPlus,
+  KeyRound,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export interface UserRow {
@@ -96,6 +105,7 @@ export function UsersClient({
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterAgence, setFilterAgence] = useState<string>("");
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [newUserOpen, setNewUserOpen] = useState(false);
 
   const agenceById = useMemo(
     () => new Map(agences.map((a) => [a.id, a])),
@@ -127,7 +137,9 @@ export function UsersClient({
   // === Mutations ===
   async function patchUser(
     id: string,
-    patch: Partial<Pick<UserRow, "role" | "agence_id" | "manager_id">>
+    patch: Partial<
+      Pick<UserRow, "role" | "agence_id" | "manager_id" | "nom" | "prenom">
+    > & { password?: string }
   ) {
     const res = await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
@@ -139,6 +151,54 @@ export function UsersClient({
       return false;
     }
     toast.success("Utilisateur mis à jour");
+    router.refresh();
+    return true;
+  }
+
+  async function createUser(payload: {
+    email: string;
+    password: string;
+    nom: string;
+    prenom: string;
+    role: UserRow["role"];
+    agence_id: string | null;
+    manager_id: string | null;
+  }) {
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: payload.email.trim(),
+        password: payload.password,
+        nom: payload.nom.trim() || null,
+        prenom: payload.prenom.trim() || null,
+        role: payload.role,
+        agence_id: payload.agence_id,
+        manager_id: payload.manager_id,
+      }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Erreur");
+      return false;
+    }
+    toast.success("Utilisateur créé");
+    router.refresh();
+    return true;
+  }
+
+  async function deleteUser(id: string, label: string) {
+    if (
+      !confirm(
+        `Supprimer ${label} ? Cette action est irréversible. Ses chantiers/relances/contacts restent en base mais perdent leur référence (created_by NULL).`
+      )
+    )
+      return false;
+    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Erreur");
+      return false;
+    }
+    toast.success("Utilisateur supprimé");
     router.refresh();
     return true;
   }
@@ -344,10 +404,10 @@ export function UsersClient({
             </CardContent>
           </Card>
 
-          {/* Recherche + filtre agence */}
+          {/* Recherche + filtre agence + nouvel user */}
           <Card>
-            <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="relative sm:col-span-2">
+            <CardContent className="p-3 flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
                 <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={usersQ}
@@ -369,6 +429,10 @@ export function UsersClient({
                   </option>
                 ))}
               </select>
+              <Button onClick={() => setNewUserOpen(true)}>
+                <UserPlus className="size-4 mr-1" />
+                Nouvel utilisateur
+              </Button>
             </CardContent>
           </Card>
 
@@ -456,6 +520,20 @@ export function UsersClient({
             const ok = await patchUser(editingUser.id, patch);
             if (ok) setEditingUser(null);
           }}
+          onDelete={async () => {
+            const ok = await deleteUser(editingUser.id, userLabel(editingUser));
+            if (ok) setEditingUser(null);
+          }}
+        />
+      )}
+
+      {/* === Modal création utilisateur === */}
+      {newUserOpen && (
+        <NewUserDialog
+          agences={agences}
+          allUsers={users}
+          onClose={() => setNewUserOpen(false)}
+          onCreate={createUser}
         />
       )}
     </main>
@@ -628,27 +706,47 @@ function EditUserDialog({
   allUsers,
   onClose,
   onSave,
+  onDelete,
 }: {
   user: UserRow;
   agences: AgenceRow[];
   allUsers: UserRow[];
   onClose: () => void;
   onSave: (
-    patch: Partial<Pick<UserRow, "role" | "agence_id" | "manager_id">>
+    patch: Partial<
+      Pick<UserRow, "role" | "agence_id" | "manager_id" | "nom" | "prenom">
+    > & { password?: string }
   ) => Promise<void>;
+  onDelete: () => Promise<void>;
 }) {
+  const [nom, setNom] = useState(user.nom ?? "");
+  const [prenom, setPrenom] = useState(user.prenom ?? "");
   const [role, setRole] = useState(user.role);
   const [agenceId, setAgenceId] = useState(user.agence_id ?? "");
   const [managerId, setManagerId] = useState(user.manager_id ?? "");
+  const [changePwd, setChangePwd] = useState(false);
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
+    if (changePwd && password.length < 8) {
+      toast.error("Mot de passe : 8 caractères minimum.");
+      return;
+    }
     setSaving(true);
-    await onSave({
+    const patch: Partial<
+      Pick<UserRow, "role" | "agence_id" | "manager_id" | "nom" | "prenom">
+    > & { password?: string } = {
       role,
       agence_id: agenceId || null,
       manager_id: managerId || null,
-    });
+      nom: nom.trim() ? nom.trim() : null,
+      prenom: prenom.trim() ? prenom.trim() : null,
+    };
+    if (changePwd && password) {
+      patch.password = password;
+    }
+    await onSave(patch);
     setSaving(false);
   }
 
@@ -656,12 +754,22 @@ function EditUserDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{userLabel(user)}</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Prénom</Label>
+              <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Nom</Label>
+              <Input value={nom} onChange={(e) => setNom(e.target.value)} />
+            </div>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs">Rôle</Label>
             <select
@@ -712,6 +820,68 @@ function EditUserDialog({
                 ))}
             </select>
           </div>
+
+          {/* Section mot de passe */}
+          <div className="border-t pt-3 space-y-2">
+            {!changePwd ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setChangePwd(true)}
+                className="w-full"
+              >
+                <KeyRound className="size-3.5 mr-1" />
+                Changer le mot de passe
+              </Button>
+            ) : (
+              <div className="space-y-1">
+                <Label className="text-xs">
+                  Nouveau mot de passe (8 caractères min.)
+                </Label>
+                <Input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setChangePwd(false);
+                    setPassword("");
+                  }}
+                >
+                  Annuler le changement de mot de passe
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Section suppression */}
+          <div className="border-t pt-3">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                setSaving(true);
+                await onDelete();
+                setSaving(false);
+              }}
+              disabled={saving}
+              className="w-full"
+            >
+              <Trash2 className="size-3.5 mr-1" />
+              Supprimer cet utilisateur
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Le compte auth + son profile sont supprimés. Ses chantiers et relances
+              restent en base mais perdent leur référence (created_by NULL).
+            </p>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>
@@ -720,6 +890,169 @@ function EditUserDialog({
           <Button onClick={handleSave} disabled={saving}>
             <Save className="size-3.5 mr-1" />
             {saving ? "..." : "Enregistrer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Dialog : création d'un nouvel utilisateur
+// ============================================================================
+function NewUserDialog({
+  agences,
+  allUsers,
+  onClose,
+  onCreate,
+}: {
+  agences: AgenceRow[];
+  allUsers: UserRow[];
+  onClose: () => void;
+  onCreate: (payload: {
+    email: string;
+    password: string;
+    nom: string;
+    prenom: string;
+    role: UserRow["role"];
+    agence_id: string | null;
+    manager_id: string | null;
+  }) => Promise<boolean>;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [role, setRole] = useState<UserRow["role"]>("commercial");
+  const [agenceId, setAgenceId] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleCreate() {
+    if (!email.trim()) {
+      toast.error("Email requis.");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("Mot de passe : 8 caractères minimum.");
+      return;
+    }
+    setSaving(true);
+    const ok = await onCreate({
+      email,
+      password,
+      nom,
+      prenom,
+      role,
+      agence_id: agenceId || null,
+      manager_id: managerId || null,
+    });
+    setSaving(false);
+    if (ok) onClose();
+  }
+
+  const selectCls = "w-full bg-background border rounded px-3 py-2 text-sm";
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nouvel utilisateur</DialogTitle>
+          <DialogDescription>
+            Crée un compte SALTI. L&apos;utilisateur pourra se connecter immédiatement
+            avec l&apos;email et le mot de passe ci-dessous.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Email *</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="prenom.nom@salti.fr"
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              Mot de passe * (8 caractères min.)
+            </Label>
+            <Input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Prénom</Label>
+              <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Nom</Label>
+              <Input value={nom} onChange={(e) => setNom(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Rôle</Label>
+            <select
+              className={selectCls}
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRow["role"])}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Agence</Label>
+            <select
+              className={selectCls}
+              value={agenceId}
+              onChange={(e) => setAgenceId(e.target.value)}
+            >
+              <option value="">— Aucune —</option>
+              {agences
+                .slice()
+                .sort((a, b) => a.nom.localeCompare(b.nom))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code ? `${a.code} · ` : ""}
+                    {a.nom}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Manager (N+1)</Label>
+            <select
+              className={selectCls}
+              value={managerId}
+              onChange={(e) => setManagerId(e.target.value)}
+            >
+              <option value="">— Aucun —</option>
+              {allUsers
+                .slice()
+                .sort((a, b) => userLabel(a).localeCompare(userLabel(b)))
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {userLabel(m)} · {ROLE_LABEL[m.role]}
+                  </option>
+                ))}
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button onClick={handleCreate} disabled={saving}>
+            <UserPlus className="size-3.5 mr-1" />
+            {saving ? "Création…" : "Créer l'utilisateur"}
           </Button>
         </DialogFooter>
       </DialogContent>
