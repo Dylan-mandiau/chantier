@@ -28,6 +28,7 @@ export interface AgenceRow {
   id: string;
   nom: string;
   ville: string | null;
+  code: string | null;
 }
 
 const ROLES: UserRow["role"][] = [
@@ -56,6 +57,7 @@ export function UsersClient({
   const [agences, setAgences] = useState(initialAgences);
   const [newAgence, setNewAgence] = useState("");
   const [newAgenceVille, setNewAgenceVille] = useState("");
+  const [newAgenceCode, setNewAgenceCode] = useState("");
   const [creating, setCreating] = useState(false);
 
   async function patchUser(
@@ -82,22 +84,25 @@ export function UsersClient({
     }
     setCreating(true);
     try {
+      const code = newAgenceCode.trim().toUpperCase() || null;
       const res = await fetch("/api/admin/agences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nom: newAgence.trim(),
           ville: newAgenceVille.trim() || null,
+          code,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const { agence_id } = await res.json();
       setAgences([
         ...agences,
-        { id: agence_id, nom: newAgence.trim(), ville: newAgenceVille.trim() || null },
+        { id: agence_id, nom: newAgence.trim(), ville: newAgenceVille.trim() || null, code },
       ]);
       setNewAgence("");
       setNewAgenceVille("");
+      setNewAgenceCode("");
       toast.success("Agence créée");
       router.refresh();
     } catch (e) {
@@ -131,6 +136,9 @@ export function UsersClient({
                 key={a.id}
                 className="text-xs px-2 py-1 rounded border bg-muted"
               >
+                {a.code && (
+                  <strong className="text-primary mr-1">{a.code}</strong>
+                )}
                 {a.nom}
                 {a.ville ? ` · ${a.ville}` : ""}
               </span>
@@ -141,13 +149,23 @@ export function UsersClient({
               </p>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
             <div className="space-y-1">
               <Label className="text-xs">Nom de l&apos;agence</Label>
               <Input
                 value={newAgence}
                 onChange={(e) => setNewAgence(e.target.value)}
-                placeholder="ex: Agence Le Mans"
+                placeholder="ex: Le Mans"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Code</Label>
+              <Input
+                value={newAgenceCode}
+                onChange={(e) => setNewAgenceCode(e.target.value)}
+                placeholder="ex: MN"
+                maxLength={10}
+                className="uppercase"
               />
             </div>
             <div className="space-y-1">

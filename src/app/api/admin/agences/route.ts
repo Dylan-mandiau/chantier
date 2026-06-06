@@ -7,6 +7,7 @@ import { z } from "zod";
 const PostSchema = z.object({
   nom: z.string().min(1).max(120),
   ville: z.string().max(120).nullable().optional(),
+  code: z.string().max(10).nullable().optional(),
 });
 
 // POST — créer une agence (admin only)
@@ -25,7 +26,11 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("agences")
-    .insert({ nom: parsed.data.nom, ville: parsed.data.ville ?? null })
+    .insert({
+      nom: parsed.data.nom,
+      ville: parsed.data.ville ?? null,
+      code: parsed.data.code?.trim() ? parsed.data.code.trim().toUpperCase() : null,
+    })
     .select("id")
     .single();
 

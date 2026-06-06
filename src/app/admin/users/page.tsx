@@ -21,7 +21,7 @@ export default async function AdminUsersPage() {
       .from("profiles")
       .select("id, email, nom, prenom, role, agence_id, manager_id")
       .order("email"),
-    admin.from("agences").select("id, nom, ville").order("nom"),
+    admin.from("agences").select("id, nom, ville, code").order("nom"),
   ]);
 
   return (
