@@ -3,7 +3,8 @@
 PWA pour les commerciaux SALTI : photographier un panneau de chantier, extraire automatiquement les sociétés intervenantes via Claude Vision, et alimenter un registre dédupliqué.
 
 **Repo** : https://github.com/Dylan-mandiau/chantier
-**Statut** : Phase 0 + Phase 1 livrées · prêt pour Vercel deploy
+**Statut** : Phase 0 + 1 en prod (tag `v0.1.2`). Phase 5 cycle commercial + Entreprises + Admin/supervision + hiérarchie + recherche/filtres = codés en local (non poussés). Voir [`HANDOFF.md`](./HANDOFF.md) § TL;DR pour l'état précis + les migrations SQL à appliquer.
+**IA de vision** : Google Gemini 2.5 Flash (`src/lib/ai/gemini.ts`). Claude dispo en backup (`src/lib/ai/claude.ts`).
 
 ## 🚀 Démarrage en local
 

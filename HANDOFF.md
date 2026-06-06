@@ -1,20 +1,47 @@
 # Handoff — Chantier Insight
 
-> Document de reprise pour continuer le projet sur une autre machine (PC fixe), ou pour
-> qu'un autre développeur / agent IA s'y mette. **Dernière mise à jour : 2026-06-04.**
+> Document de reprise pour continuer le projet sur une autre machine, ou pour
+> qu'un autre développeur / agent IA s'y mette. **Dernière mise à jour : 2026-06-06.**
 
 ---
 
 ## TL;DR
 
-- **30/31 tâches livrées** (Phase 0 setup + Phase 1 MVP minimal extractif)
-- **9 commits** sur `main`, poussés à https://github.com/Dylan-mandiau/chantier
-- **Code testé via curl** : `/login` → 200, `/` → 307 redirect (proxy auth OK)
-- **Pas encore testé manuellement** dans le navigateur (signup → photo → analyse → save)
-- **Reste à faire** :
-  1. Recette manuelle du parcours complet (Phase 1 critère de sortie)
-  2. Déploiement Vercel (T7 — la dernière tâche de Phase 0)
-  3. Phase 2+ (consultation, enrichissement, dashboard PC, cycle commercial, polish)
+- **Phase 0 + Phase 1 livrées ET déployées en prod** (Vercel) — scan panneau → IA → save fonctionne en ligne.
+- **IA de vision = Google Gemini 2.5 Flash** (et plus Claude) — ~10× moins cher (~0,015 €/scan vs ~0,15 €). Le client Claude reste dispo en backup dans `src/lib/ai/claude.ts`.
+- **Phase 5 (cycle commercial), menu Entreprises, mode Admin/supervision, hiérarchie de visibilité, recherche/filtres partout** : tout est **codé et committé en LOCAL**, mais **pas encore poussé** sur GitHub ni déployé (l'utilisateur teste en local d'abord).
+- **Tag prod actuel : `v0.1.2`** (= Phase 1 + CRUD + Gemini). Le code local va bien au-delà (≈ +10 commits non poussés).
+
+### ⚠️ État précis au 2026-06-06
+
+| Bloc | Code | Poussé GitHub | SQL Supabase appliqué |
+|---|---|---|---|
+| Phase 0 + 1 (scan→IA→save) | ✅ | ✅ (`v0.1.2`) | ✅ |
+| CRUD chantier (edit/delete) | ✅ | ✅ | ✅ |
+| Gemini 2.5 Flash | ✅ | ✅ | n/a |
+| Phase 5 cycle commercial | ✅ | ❌ local | migration `20260605000001` ✅ appliquée |
+| Menu Entreprises + fiche | ✅ | ❌ local | n/a |
+| Admin superviseur + filtres | ✅ | ❌ local | migration `…000002` ⏳ à appliquer |
+| Hiérarchie (manager_id) | ✅ | ❌ local | migration `…000003` ⏳ à appliquer |
+| Rôle directeur_commercial | ✅ | ❌ local | migration `…000004` ⏳ à appliquer |
+| Templates métier SALTI | ✅ | ❌ local | migration `…000001 (fix)` ⏳ à appliquer |
+| Recherche + filtres (4 listes) | ✅ | ❌ local | n/a |
+
+### 🛑 Migrations SQL à exécuter dans Supabase (dans l'ordre)
+
+Via SQL Editor (le CLI supabase est buggé localement, cf § 5.2) :
+1. `UPDATE public.profiles SET role='admin' WHERE email='dfournier@salti.fr';`
+2. `20260606000001_fix_templates_business.sql`
+3. `20260606000002_admin_superpowers.sql`  ← crée `is_admin()`
+4. `20260606000003_hierarchy.sql`  ← ajoute `manager_id` (sans ça, `/admin/users` affiche 0 user)
+5. `20260606000004_role_directeur.sql`  ← rôle directeur_commercial
+
+### Reste à faire (priorités)
+1. Tester en local toutes les features non poussées, puis **`git push origin main`** + tag `v0.2.0`.
+2. Ajouter sur Vercel les env vars manquantes éventuelles ; redéployer.
+3. **Task 12 — cron email matinal des relances** (pas encore codé) : via Gmail/Google Workspace ou Resend.
+4. Enrichissement auto (Sirene + Tavily) — Phase 3, non commencé.
+5. Seed des **agences SALTI** (avec code court, ex "Le Mans" = "MN") — colonne `code` à ajouter sur `agences`.
 
 ---
 
@@ -62,8 +89,9 @@ Puis remplir avec les vraies valeurs. Les clés actuellement en service (à **ro
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://axpeuldwrheivcmkrxgw.supabase.co` |
 | `SUPABASE_PROJECT_ID` | `axpeuldwrheivcmkrxgw` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | clé JWT `anon` (voir Supabase Studio → Settings → API) |
-| `SUPABASE_SERVICE_ROLE_KEY` | clé JWT `service_role` (idem, **secret**) |
-| `ANTHROPIC_API_KEY` | `sk-ant-...` (console.anthropic.com → API Keys) |
+| `SUPABASE_SERVICE_ROLE_KEY` | clé JWT `service_role` (idem, **secret**) — utilisée par `createAdminClient()` pour `/admin/*` et la dédup entreprises |
+| `GOOGLE_API_KEY` | `AIza...` (https://aistudio.google.com/apikey) — **IA de vision active (Gemini 2.5 Flash)** |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` (console.anthropic.com) — backup, plus utilisé par défaut |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` en dev |
 
 > 🔒 **Rotation obligatoire avant prod** : les clés actuelles ont transité par une conversation
@@ -78,6 +106,39 @@ npm run dev
 ```
 
 Ouvrir http://localhost:3000 → doit rediriger vers `/login`.
+
+---
+
+## 1bis. Carte des routes & features (état local 2026-06-06)
+
+### Routes
+| Route | Rôle requis | Description |
+|---|---|---|
+| `/login` | public | Login + signup |
+| `/` | auth | **Mes chantiers** (perso) + recherche/filtres (titre, ville, CP, dépt, tri) |
+| `/nouveau` | auth | Capture photo (caméra/galerie) |
+| `/analyse/new` | auth | Analyse Gemini + édition + save (badge "saisi" si champ modifié à la main) |
+| `/chantiers/[id]` | auth | Fiche chantier : intervenants + statut commercial + Premier contact + Planifier relance |
+| `/chantiers/[id]/edit` | owner | Édition complète + suppression |
+| `/entreprises` | auth | **Registre dédupliqué** + recherche/filtres (statut connu/inconnu, dépt, à-compléter, tri) |
+| `/entreprises/[id]` | auth | Fiche entreprise éditable (coordonnées + **code client SALTI**) + chantiers + relances + historique contacts |
+| `/relances` | auth | **Mes relances** : onglets "À faire" (buckets) / "Historique" + recherche |
+| `/admin` | rc / chef_secteur / directeur_commercial / admin | **Supervision** : KPIs équipe + activité par commercial + derniers scans + filtres agence/commercial/période + recherche |
+| `/admin/users` | admin | Gérer users (rôle, agence, **manager N+1**) + créer agences |
+| `/admin/templates` | admin | CRUD templates email |
+| `/api/...` | auth | analyze, chantiers, chantiers/[id], entreprises/[id], relances(+[id]), contacts, templates(+[id]), admin/users/[id], admin/agences |
+
+### Concepts clés
+- **Rôles** : `commercial` < `rc` < `chef_secteur` < `directeur_commercial` < `admin`. **Tous** peuvent scanner/utiliser l'app. Les rôles managers + admin voient le menu supervision (👥 Mon équipe / 🛡 Admin).
+- **Visibilité hiérarchique** : `profiles.manager_id` forme un arbre. `can_view_profile(target)` (RLS récursive) = admin OU soi OU target dans le sous-arbre managé. Un RC voit ses commerciaux, un chef de secteur voit RC + commerciaux, etc.
+- **Statut commercial** (calcul pur `src/lib/statut/compute.ts`) : inconnu / premier_contact / pas_de_reponse / relance_planifiee / converti / refus / client_salti (⭐ si code client renseigné).
+- **Premier contact** : `mailto:` pré-rempli depuis un template (variables `{{raison_sociale}}`, `{{commercial_nom}}`, `{{code_client_salti}}`, `{{code_client_salti_phrase}}`, `{{code_client_salti_ps}}`, `{{chantier_titre}}`, `{{lot_numero}}`, `{{lot_intitule}}`) → log dans `contacts_envoyes`. Compatible Gmail (Google Workspace).
+- **Recherche/filtres** : composants client (`*ListClient.tsx`) filtrant en mémoire, instantané, scopé par RLS selon le rôle.
+
+### Composants/libs ajoutés
+- `src/lib/templates/render.ts` (+ test), `src/lib/statut/compute.ts` (+ test), `src/lib/auth/is-admin.ts`
+- `src/components/{statut-commercial-badge,premier-contact-button,planifier-relance-button,relance-card}.tsx`
+- `src/app/entreprises/EntreprisesListClient.tsx`, `src/app/ChantiersListClient.tsx`, `src/app/relances/{RelancesAFaireClient,RelancesHistoClient}.tsx`, `src/app/admin/{AdminFilters,AdminChantiersList}.tsx`
 
 ---
 
@@ -96,9 +157,14 @@ chantier-insight/
 ├── supabase/
 │   ├── config.toml
 │   └── migrations/
-│       ├── 20260529000001_initial_schema.sql       ✅ appliquée
-│       ├── 20260529000002_rls_policies.sql         ✅ appliquée
-│       └── 20260529000003_storage_bucket.sql       ✅ appliquée
+│       ├── 20260529000001_initial_schema.sql          ✅ appliquée
+│       ├── 20260529000002_rls_policies.sql            ✅ appliquée
+│       ├── 20260529000003_storage_bucket.sql          ✅ appliquée
+│       ├── 20260605000001_phase5_cycle_commercial.sql ✅ appliquée (templates, contacts_envoyes, relances)
+│       ├── 20260606000001_fix_templates_business.sql  ⏳ à appliquer (SALTII = levage/élévation + PS code client)
+│       ├── 20260606000002_admin_superpowers.sql       ⏳ à appliquer (is_admin() + RLS admin read-all)
+│       ├── 20260606000003_hierarchy.sql               ⏳ à appliquer (profiles.manager_id + can_view_profile())
+│       └── 20260606000004_role_directeur.sql          ⏳ à appliquer (rôle directeur_commercial)
 ├── src/
 │   ├── proxy.ts                          # ← Next 16 (anciennement middleware.ts)
 │   ├── app/
