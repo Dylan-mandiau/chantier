@@ -167,8 +167,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  // Récupère le chemin photo avant de supprimer le chantier (pour cleanup Storage)
-  const { data: chantier } = await supabase
+  const admin = createAdminClient();
+
+  // Lecture via service role : l'admin doit pouvoir cibler les chantiers des
+  // autres (nettoyage des doublons), au-delà de ce que la RLS lui montre.
+  const { data: chantier } = await admin
     .from("chantiers")
     .select("photo_principale_url, created_by")
     .eq("id", id)
@@ -178,8 +181,24 @@ export async function DELETE(
     return NextResponse.json({ error: "Chantier introuvable" }, { status: 404 });
   }
 
-  // Delete : RLS chantiers_owner_delete + CASCADE auto sur chantier_intervenants
-  const { error: delErr } = await supabase
+  // Autorisation : propriétaire OU admin (décision Phase 1 : la suppression
+  // reste réservée au créateur ou à un admin, pas à toute l'agence).
+  const { data: me } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isAdmin = me?.role === "admin";
+  const isOwner = chantier.created_by === user.id;
+  if (!isAdmin && !isOwner) {
+    return NextResponse.json(
+      { error: "Tu ne peux supprimer que tes propres chantiers." },
+      { status: 403 }
+    );
+  }
+
+  // Delete via service role (bypass RLS) ; CASCADE auto sur chantier_intervenants
+  const { error: delErr } = await admin
     .from("chantiers")
     .delete()
     .eq("id", id);
@@ -189,9 +208,9 @@ export async function DELETE(
     return NextResponse.json({ error: delErr.message }, { status: 500 });
   }
 
-  // Best-effort cleanup de la photo Storage (RLS users_delete_own_folder)
+  // Best-effort cleanup de la photo Storage (service role)
   if (chantier.photo_principale_url) {
-    const { error: storageErr } = await supabase.storage
+    const { error: storageErr } = await admin.storage
       .from("chantier-photos")
       .remove([chantier.photo_principale_url]);
     if (storageErr) {
