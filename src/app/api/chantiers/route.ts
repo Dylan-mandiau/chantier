@@ -62,6 +62,24 @@ export async function POST(request: Request) {
     }
   }
 
+  // Lien panneau durable : find-or-create par dedup_key (service role).
+  // Tous les chantiers du même panneau (toutes agences) partagent ce panneau_id.
+  let panneauId: string | null = null;
+  if (dedupKey) {
+    await admin
+      .from("panneaux")
+      .upsert(
+        { dedup_key: dedupKey, titre: analyzed.projet.titre },
+        { onConflict: "dedup_key", ignoreDuplicates: true }
+      );
+    const { data: pan } = await admin
+      .from("panneaux")
+      .select("id")
+      .eq("dedup_key", dedupKey)
+      .single();
+    panneauId = pan?.id ?? null;
+  }
+
   try {
     const { data: chantier, error: chantierErr } = await supabase
       .from("chantiers")
@@ -80,6 +98,7 @@ export async function POST(request: Request) {
         created_by: user.id,
         agence_id: agenceId,
         dedup_key: dedupKey,
+        panneau_id: panneauId,
         ia_raw_json: analyzed as unknown as never,
       })
       .select("id")
