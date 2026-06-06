@@ -35,15 +35,40 @@
 > cf § 5.2), puis passe ton compte admin :
 > `UPDATE public.profiles SET role='admin' WHERE email='<ton-email>';`
 
-### 🕓 Reste à faire (parqué après le MVP — "cas spécifiques plus tard")
+### 🎨 Identité & UX (audit UX) — FAIT (juin 2026)
 
-1. **Modèle Contacts** multi-personnes par entreprise (#39) + **visibilité agence** (#40) + **traçabilité/audit** (#41) — calqué sur la base SALTI (un client = N contacts).
-2. **Outil admin de fusion** des doublons existants (#36).
-3. **Connecteur BDD SALTI** : match raison sociale → SIRET / code client (#37).
-4. **Dédup robuste** : matcher permis OU adresse simultanément (variance OCR des chiffres) (#45).
-5. **Refonte fiche panneau** (navigation rapide contacts SALTI / inconnus) (#43) + **fiche intervenant enrichie** "où j'en suis" + traçabilité (#44).
-6. **Email matinal des relances** (cron Gmail/Workspace ou Resend) — non commencé.
-7. (Optionnel) flag "vérifié par humain" sur intervenants (#38).
+Refonte design suite à l'audit (`../Chantier-Insight-UX-Audit.pdf`) :
+- **Design system SALTI** : police sans-serif (Geist), couleur de marque **jaune
+  #FFDD00 + texte noir** (token `--brand` unique dans `globals.css`), **logo**
+  (`public/logo-salti.svg`) dans l'en-tête + login.
+- **Navigation** : en-tête refait (`main-nav.tsx` desktop, état actif, avatar
+  initiales + profil) ; **barre de nav mobile en bas** (`bottom-nav.tsx`) façon
+  app native avec **Scanner central jaune** + safe-area (`env(safe-area-inset-bottom)`,
+  `viewport-fit=cover`). Barre **masquée** sur /nouveau, /analyse, */edit (parcours
+  à action fixe). `mobile-nav.tsx` (☰) = compte/déconnexion.
+- **Format PC** : largeurs élargies + grilles multi-colonnes (accueil 4 col,
+  entreprises 2 col, admin 6 col agences). Formulaires laissés étroits.
+- **Fiche chantier** (#43 FAIT) : photo en bandeau compact cliquable + layout 2
+  colonnes + `intervenants-list.tsx` (client) avec tri **Tous / ⭐ Clients SALTI /
+  Inconnus**. Intervenant **cliquable** → fiche entreprise.
+- **`back-button.tsx`** : Retour contextuel (history.back + fallback).
+- **`contact-actions.tsx`** : **confirmation avant Appeler/Mailer** (anti-tapotage),
+  utilisé sur intervenants + fiche entreprise.
+
+### 🕓 Reste à faire (backlog — "fait tous" demandé, à faire à la prochaine session)
+
+> ⚠️ Ces items impliquent des **migrations BDD** + nouvelles entités/RLS : à faire
+> à tête reposée (contexte plein lors du dernier passage). Tâches #36-#47.
+
+1. **Modèle Contacts** multi-personnes par entreprise (#39) + **visibilité agence** (#40) + **traçabilité/audit** (#41) — calqué sur la base SALTI (un client = N contacts ; cf capture 111 contacts EIFFAGE). Nouvelle table `contacts` (FK entreprise, created_by, agence_id, rôle/service, tel, portable, email) + migration tel/email entreprise → contacts + table d'audit.
+2. **Page Entreprises plus pratique** (#46) : filtres en puces + actions inline (réutiliser `ContactActions`).
+3. **Ludification** (#47) : tableau de bord perso commercial (mes scans/contacts/relances) + compteurs de progression.
+4. **Outil admin de fusion** des doublons existants (#36).
+5. **Connecteur BDD SALTI** : match raison sociale → SIRET / code client (#37).
+6. **Dédup robuste** : matcher permis OU adresse simultanément (variance OCR des chiffres) (#45).
+7. **Fiche intervenant enrichie** "où j'en suis" + traçabilité (#44).
+8. **Email matinal des relances** (cron Gmail/Workspace ou Resend) — non commencé.
+9. (Optionnel) flag "vérifié par humain" sur intervenants (#38).
 
 ---
 

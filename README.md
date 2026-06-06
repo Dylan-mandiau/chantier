@@ -143,9 +143,14 @@ Le prompt est dans `src/lib/ai/prompts.ts`. Si l'extraction échoue sur certains
 
 - ✅ MVP : scan → IA → fiche, collaboration agence, dédup + import inter-agence,
   cycle commercial, admin, mobile.
-- ⏳ Suite (parquée) : modèle Contacts multi-personnes + traçabilité, outil admin de
-  fusion des doublons, connecteur BDD SALTI (SIRET/code client), dédup robuste
-  (variance OCR), refonte fiche panneau, email matinal des relances.
+- ✅ Identité & UX (audit) : design system SALTI (jaune #FFDD00 + logo + typo),
+  en-tête refait + **barre de nav mobile** (Scanner central, safe-area), format PC
+  (grilles multi-colonnes), fiche chantier (photo compacte + tri Clients SALTI /
+  Inconnus), retour contextuel, **confirmation anti-tapotage** avant Appeler/Mailer.
+- ⏳ Suite (backlog #36-#47, voir HANDOFF) : Contacts multi-personnes + traçabilité,
+  page Entreprises (puces + actions inline), ludification (dashboard perso),
+  fusion des doublons (admin), connecteur BDD SALTI (SIRET/code client), dédup
+  robuste (variance OCR), email matinal des relances.
 
 ## 🔄 Reprise du travail
 
