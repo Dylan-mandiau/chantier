@@ -6,7 +6,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -44,14 +43,12 @@ export function MobileNav({
         <Menu className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6} className="w-56">
-        <DropdownMenuLabel className="text-sm font-semibold text-foreground">
-          {displayName}
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-semibold text-foreground">{displayName}</p>
           {roleLabel && (
-            <span className="block text-xs font-normal text-muted-foreground">
-              {roleLabel}
-            </span>
+            <p className="text-xs text-muted-foreground">{roleLabel}</p>
           )}
-        </DropdownMenuLabel>
+        </div>
         <DropdownMenuSeparator />
 
         <DropdownMenuItem render={<Link href="/" />}>
