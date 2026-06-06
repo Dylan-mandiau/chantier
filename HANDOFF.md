@@ -7,41 +7,43 @@
 
 ## TL;DR
 
-- **Phase 0 + Phase 1 livrées ET déployées en prod** (Vercel) — scan panneau → IA → save fonctionne en ligne.
-- **IA de vision = Google Gemini 2.5 Flash** (et plus Claude) — ~10× moins cher (~0,015 €/scan vs ~0,15 €). Le client Claude reste dispo en backup dans `src/lib/ai/claude.ts`.
-- **Phase 5 (cycle commercial), menu Entreprises, mode Admin/supervision, hiérarchie de visibilité, recherche/filtres partout** : tout est **codé et committé en LOCAL**, mais **pas encore poussé** sur GitHub ni déployé (l'utilisateur teste en local d'abord).
-- **Tag prod actuel : `v0.1.2`** (= Phase 1 + CRUD + Gemini). Le code local va bien au-delà (≈ +10 commits non poussés).
+- **MVP complet, poussé sur GitHub et déployé** (Vercel, région Frankfurt).
+- **IA de vision = Google Gemini 2.5 Flash** (~10× moins cher que Claude). Claude
+  reste dispo en backup dans `src/lib/ai/claude.ts`.
+- **Tout est sur `main`** (plus de "code local non poussé"). Dernier tag visé : **`v0.3.0`** (fin du MVP).
+- Le MVP couvre : scan→IA→fiche, **collaboration par agence** (1 fiche/panneau/agence),
+  **déduplication des panneaux** (permis « PC N° » normalisé ou repli adresse+titre,
+  détection dès la fin de l'analyse), **import inter-agence** (compare-image + reprise
+  des données vérifiées, lien `panneaux`), registre Entreprises dédupliqué, cycle
+  commercial (premier contact + relances), admin (CRUD users/agences/templates,
+  supervision, hiérarchie), inscription publique désactivée, menu mobile.
 
-### ⚠️ État précis au 2026-06-06
+### ⚠️ État au 2026-06-06 : tout est livré
 
-| Bloc | Code | Poussé GitHub | SQL Supabase appliqué |
+| Bloc | Code | Poussé | SQL appliqué |
 |---|---|---|---|
-| Phase 0 + 1 (scan→IA→save) | ✅ | ✅ (`v0.1.2`) | ✅ |
-| CRUD chantier (edit/delete) | ✅ | ✅ | ✅ |
-| Gemini 2.5 Flash | ✅ | ✅ | n/a |
-| Phase 5 cycle commercial | ✅ | ❌ local | migration `20260605000001` ✅ appliquée |
-| Menu Entreprises + fiche | ✅ | ❌ local | n/a |
-| Admin superviseur + filtres | ✅ | ❌ local | migration `…000002` ⏳ à appliquer |
-| Hiérarchie (manager_id) | ✅ | ❌ local | migration `…000003` ⏳ à appliquer |
-| Rôle directeur_commercial | ✅ | ❌ local | migration `…000004` ⏳ à appliquer |
-| Templates métier SALTI | ✅ | ❌ local | migration `…000001 (fix)` ⏳ à appliquer |
-| Recherche + filtres (4 listes) | ✅ | ❌ local | n/a |
+| Scan → IA → fiche (Gemini) | ✅ | ✅ | ✅ |
+| Collaboration agence + dédup + import inter-agence | ✅ | ✅ | migrations `…008/009/010` |
+| Entreprises (registre dédupliqué) | ✅ | ✅ | ✅ |
+| Cycle commercial (contact/relances/templates) | ✅ | ✅ | `…000001(+fix)` |
+| Admin (users/agences/templates/supervision) | ✅ | ✅ | `…002/003/004/005/006` |
+| Hiérarchie + rôle directeur_commercial | ✅ | ✅ | `…003/004` |
+| Menu mobile + signup désactivé | ✅ | ✅ | n/a |
 
-### 🛑 Migrations SQL à exécuter dans Supabase (dans l'ordre)
+> ⚠️ Quand tu pars d'une **base Supabase vierge**, applique **toutes** les migrations
+> de `supabase/migrations/` dans l'ordre via le SQL Editor (le CLI est buggé en local,
+> cf § 5.2), puis passe ton compte admin :
+> `UPDATE public.profiles SET role='admin' WHERE email='<ton-email>';`
 
-Via SQL Editor (le CLI supabase est buggé localement, cf § 5.2) :
-1. `UPDATE public.profiles SET role='admin' WHERE email='dfournier@salti.fr';`
-2. `20260606000001_fix_templates_business.sql`
-3. `20260606000002_admin_superpowers.sql`  ← crée `is_admin()`
-4. `20260606000003_hierarchy.sql`  ← ajoute `manager_id` (sans ça, `/admin/users` affiche 0 user)
-5. `20260606000004_role_directeur.sql`  ← rôle directeur_commercial
+### 🕓 Reste à faire (parqué après le MVP — "cas spécifiques plus tard")
 
-### Reste à faire (priorités)
-1. Tester en local toutes les features non poussées, puis **`git push origin main`** + tag `v0.2.0`.
-2. Ajouter sur Vercel les env vars manquantes éventuelles ; redéployer.
-3. **Task 12 — cron email matinal des relances** (pas encore codé) : via Gmail/Google Workspace ou Resend.
-4. Enrichissement auto (Sirene + Tavily) — Phase 3, non commencé.
-5. Seed des **agences SALTI** (avec code court, ex "Le Mans" = "MN") — colonne `code` à ajouter sur `agences`.
+1. **Modèle Contacts** multi-personnes par entreprise (#39) + **visibilité agence** (#40) + **traçabilité/audit** (#41) — calqué sur la base SALTI (un client = N contacts).
+2. **Outil admin de fusion** des doublons existants (#36).
+3. **Connecteur BDD SALTI** : match raison sociale → SIRET / code client (#37).
+4. **Dédup robuste** : matcher permis OU adresse simultanément (variance OCR des chiffres) (#45).
+5. **Refonte fiche panneau** (navigation rapide contacts SALTI / inconnus) (#43) + **fiche intervenant enrichie** "où j'en suis" + traçabilité (#44).
+6. **Email matinal des relances** (cron Gmail/Workspace ou Resend) — non commencé.
+7. (Optionnel) flag "vérifié par humain" sur intervenants (#38).
 
 ---
 
@@ -114,22 +116,23 @@ Ouvrir http://localhost:3000 → doit rediriger vers `/login`.
 ### Routes
 | Route | Rôle requis | Description |
 |---|---|---|
-| `/login` | public | Login + signup |
-| `/` | auth | **Mes chantiers** (perso) + recherche/filtres (titre, ville, CP, dépt, tri) |
+| `/login` | public | Login seul (inscription publique désactivée) |
+| `/` | auth | **Chantiers de mon agence** + recherche/filtres (titre, ville, CP, dépt, tri) |
 | `/nouveau` | auth | Capture photo (caméra/galerie) |
-| `/analyse/new` | auth | Analyse Gemini + édition + save (badge "saisi" si champ modifié à la main) |
+| `/analyse/new` | auth | Analyse Gemini + **détection doublon** + édition + save (badge "saisi" si modifié à la main) |
 | `/chantiers/[id]` | auth | Fiche chantier : intervenants + statut commercial + Premier contact + Planifier relance |
-| `/chantiers/[id]/edit` | owner | Édition complète + suppression |
+| `/chantiers/[id]/edit` | owner / agence | Édition complète + suppression (suppression : owner/admin) |
 | `/entreprises` | auth | **Registre dédupliqué** + recherche/filtres (statut connu/inconnu, dépt, à-compléter, tri) |
 | `/entreprises/[id]` | auth | Fiche entreprise éditable (coordonnées + **code client SALTI**) + chantiers + relances + historique contacts |
 | `/relances` | auth | **Mes relances** : onglets "À faire" (buckets) / "Historique" + recherche |
 | `/admin` | rc / chef_secteur / directeur_commercial / admin | **Supervision** : KPIs équipe + activité par commercial + derniers scans + filtres agence/commercial/période + recherche |
 | `/admin/users` | admin | Gérer users (rôle, agence, **manager N+1**) + créer agences |
 | `/admin/templates` | admin | CRUD templates email |
-| `/api/...` | auth | analyze, chantiers, chantiers/[id], entreprises/[id], relances(+[id]), contacts, templates(+[id]), admin/users/[id], admin/agences |
+| `/api/...` | auth | analyze, chantiers (+`/check-duplicate`, `/import`, `/[id]`), entreprises/[id], relances(+[id]), contacts, templates(+[id]), admin/users(+[id]), admin/agences(+[id]) |
 
 ### Concepts clés
 - **Rôles** : `commercial` < `rc` < `chef_secteur` < `directeur_commercial` < `admin`. **Tous** peuvent scanner/utiliser l'app. Les rôles managers + admin voient le menu supervision (👥 Mon équipe / 🛡 Admin).
+- **Dédup & collaboration chantiers** : `dedup_key` (permis sans préfixe « PC N° », ou repli adresse+titre). 1 fiche par panneau **et par agence** (collaborative en lecture+écriture dans l'agence). Détection **dès la fin de l'analyse** (`/api/chantiers/check-duplicate`) : même agence → ouvrir la fiche commune ; autre agence → **compare-image + import** (`/api/chantiers/import`). Lien durable inter-agences via la table `panneaux` (`panneau_id`).
 - **Visibilité hiérarchique** : `profiles.manager_id` forme un arbre. `can_view_profile(target)` (RLS récursive) = admin OU soi OU target dans le sous-arbre managé. Un RC voit ses commerciaux, un chef de secteur voit RC + commerciaux, etc.
 - **Statut commercial** (calcul pur `src/lib/statut/compute.ts`) : inconnu / premier_contact / pas_de_reponse / relance_planifiee / converti / refus / client_salti (⭐ si code client renseigné).
 - **Premier contact** : `mailto:` pré-rempli depuis un template (variables `{{raison_sociale}}`, `{{commercial_nom}}`, `{{code_client_salti}}`, `{{code_client_salti_phrase}}`, `{{code_client_salti_ps}}`, `{{chantier_titre}}`, `{{lot_numero}}`, `{{lot_intitule}}`) → log dans `contacts_envoyes`. Compatible Gmail (Google Workspace).
@@ -156,15 +159,21 @@ chantier-insight/
 ├── package.json                          # engines.node >=22 <24
 ├── supabase/
 │   ├── config.toml
-│   └── migrations/
-│       ├── 20260529000001_initial_schema.sql          ✅ appliquée
-│       ├── 20260529000002_rls_policies.sql            ✅ appliquée
-│       ├── 20260529000003_storage_bucket.sql          ✅ appliquée
-│       ├── 20260605000001_phase5_cycle_commercial.sql ✅ appliquée (templates, contacts_envoyes, relances)
-│       ├── 20260606000001_fix_templates_business.sql  ⏳ à appliquer (SALTII = levage/élévation + PS code client)
-│       ├── 20260606000002_admin_superpowers.sql       ⏳ à appliquer (is_admin() + RLS admin read-all)
-│       ├── 20260606000003_hierarchy.sql               ⏳ à appliquer (profiles.manager_id + can_view_profile())
-│       └── 20260606000004_role_directeur.sql          ⏳ à appliquer (rôle directeur_commercial)
+│   └── migrations/                                    # appliquées via SQL Editor
+│       ├── 20260529000001_initial_schema.sql           # tables + triggers
+│       ├── 20260529000002_rls_policies.sql             # RLS owner-based
+│       ├── 20260529000003_storage_bucket.sql           # bucket chantier-photos
+│       ├── 20260605000001_phase5_cycle_commercial.sql  # templates, contacts_envoyes, relances
+│       ├── 20260606000001_fix_templates_business.sql   # templates métier SALTI
+│       ├── 20260606000002_admin_superpowers.sql        # is_admin() + RLS admin read-all
+│       ├── 20260606000003_hierarchy.sql                # profiles.manager_id + can_view_profile()
+│       ├── 20260606000004_role_directeur.sql           # rôle directeur_commercial
+│       ├── 20260606000005_agence_code.sql              # agences.code (ex. Le Mans = MN)
+│       ├── 20260606000006_seed_agences.sql             # seed 52 agences SALTI
+│       ├── 20260606000007_chantier_dedup.sql           # (v1, superseded par 008/009/010)
+│       ├── 20260606000008_chantier_collab_agence.sql   # dedup_key + RLS écriture agence
+│       ├── 20260606000009_panneaux.sql                 # table panneaux + chantiers.panneau_id
+│       └── 20260606000010_dedup_key_permis_prefix.sql  # normalisation clé permis (« PC N° »)
 ├── src/
 │   ├── proxy.ts                          # ← Next 16 (anciennement middleware.ts)
 │   ├── app/
@@ -177,8 +186,8 @@ chantier-insight/
 │   │   ├── chantiers/[id]/page.tsx       # fiche détail
 │   │   ├── auth/signout/route.ts
 │   │   └── api/
-│   │       ├── analyze/route.ts          # → Claude vision
-│   │       └── chantiers/route.ts        # → save BDD + dédup entreprises
+│   │       ├── analyze/route.ts          # → Gemini vision (Claude en backup)
+│   │       └── chantiers/route.ts        # → save + dédup panneau (agence) + dédup entreprises
 │   ├── components/
 │   │   ├── ui/                           # shadcn (button, input, card, dialog, etc.)
 │   │   ├── camera-capture.tsx
@@ -210,18 +219,22 @@ chantier-insight/
 - **Tailwind CSS 4** + **shadcn/ui** (composants pré-installés : button, input, label, card,
   avatar, dropdown-menu, dialog, textarea, badge, sonner, separator, skeleton)
 - **Supabase** Frankfurt (Postgres + Auth + Storage)
-- **Anthropic Claude Sonnet 4.6** via `@anthropic-ai/sdk`
-- **zod** validation runtime (réponse Claude)
-- **Vitest** (3 fichiers de tests unitaires)
+- **Google Gemini 2.5 Flash** via `@google/genai` (`src/lib/ai/gemini.ts`) — Claude en backup (`src/lib/ai/claude.ts`)
+- **zod** validation runtime (réponse IA)
+- **Vitest** (tests unitaires : dedup, schema, image, templates, statut)
 
 ### 2.3 Décisions structurantes appliquées
 
 - 1 codebase mobile + PC (PWA Next.js, pas natif)
 - Région Frankfurt (RGPD)
 - Anti-Edge runtime : `proxy.ts` tourne en Node.js runtime (depuis Next 16, défaut)
-- Auth Supabase email/password (signup activé, **email confirmation désactivée** pour le dev)
-- Dédup entreprises sur (raison_sociale_normalisée, code_postal) — la fonction
-  `normalizeRaisonSociale` strip les suffixes SAS/SARL/SA/EURL/SCI/SNC/SASU/SCOP
+- Auth Supabase email/password — **inscription publique désactivée** : les comptes sont
+  créés par l'admin (`/admin/users` via `auth.admin`), email confirmé d'office.
+- Dédup **entreprises** sur (raison_sociale_normalisée, code_postal) — `normalizeRaisonSociale`
+  strip les suffixes SAS/SARL/SA/EURL/SCI/SNC/SASU/SCOP.
+- Dédup **chantiers (panneaux)** sur `dedup_key` = `pc:<permis sans préfixe lettres>` ou
+  repli `ad:<titre|adresse|cp>` (`src/lib/dedup/chantier.ts` + `chantier-detect.ts`).
+  Propriété **par agence** (1 fiche/panneau/agence) ; lien inter-agences via `panneaux`.
 
 ---
 
@@ -241,11 +254,10 @@ chantier-insight/
 
 À faire dans cet ordre sur http://localhost:3000 :
 
-- [ ] **Signup** : email + password ≥ 8 caractères → redirect vers `/`
-- [ ] **Profile auto-créé** : vérifier dans Supabase Studio → Table Editor → `profiles` qu'une
-  ligne avec ton email apparaît (créée par le trigger `handle_new_user`)
+- [ ] **Création de compte par l'admin** : `/admin/users` → "Nouvel utilisateur" (email + mot de passe ≥ 8) ; l'inscription publique est désactivée
+- [ ] **Profile** : la ligne `profiles` est créée par le trigger `handle_new_user`, puis complétée (rôle/agence/manager) par l'admin
+- [ ] **Login** : le nouvel utilisateur se connecte → redirect `/`
 - [ ] **Logout** : bouton "Déconnexion" du header → redirect `/login`
-- [ ] **Login** : retour avec les mêmes credentials → redirect `/`
 - [ ] **Nouveau chantier** : bouton flottant → page `/nouveau`
 - [ ] **Galerie** : choisir une photo de panneau de chantier (.jpg ou .png) depuis le disque
 - [ ] **Upload Storage** : vérifier dans Supabase Studio → Storage → bucket `chantier-photos`
@@ -340,38 +352,26 @@ unset ANTHROPIC_API_KEY  # ou redémarrer dans un shell vierge
 
 ## 6. Comment continuer
 
-### 6.1 Étape immédiate : terminer la Phase 0/1
+### 6.1 État : MVP livré
 
-1. Faire la recette manuelle (§ 4) sur le PC fixe
-2. Si un bug : debug → patch → commit → push
-3. **T7 — Déploiement Vercel** :
-   - Aller sur https://vercel.com → Add New → Project → Import GitHub `Dylan-mandiau/chantier`
-   - Framework Preset : Next.js (auto)
-   - **Region : Frankfurt (fra1)** (Settings → Functions)
-   - Ajouter les 6 vars d'env (mêmes valeurs que `.env.local`)
-   - Deploy
-   - Tester depuis ton téléphone (URL https://chantier-xxx.vercel.app)
-   - Tag : `git tag -a v0.1.0 -m "Phase 1 MVP minimal extractif" && git push origin v0.1.0`
+Le MVP est codé, poussé et déployé. Pour repartir : appliquer les migrations sur
+la base cible (§ TL;DR), faire la recette (§ 4), puis itérer sur le backlog parqué.
 
-### 6.2 Étape suivante : Phase 2 — Consultation (≈ 1 semaine)
+### 6.2 Backlog (parqué — "cas spécifiques plus tard")
 
-D'après le spec design (`docs/superpowers/specs/2026-05-29-chantier-insight-design.md`) :
-- Liste chantiers (mobile cards + PC grille)
-- Fiche chantier consultation + édition
-- Recherche basique (titre, ville)
-- Actions Appeler/Email actives (`tel:` / `mailto:`)
-
-À écrire avec un nouveau plan via `superpowers:writing-plans` → fichier `docs/superpowers/plans/2026-XX-XX-chantier-insight-phase-2.md`.
+Détail dans le § TL;DR > "Reste à faire". En résumé :
+- **Contacts** multi-personnes par entreprise + visibilité agence + traçabilité (calqué sur la base SALTI).
+- **Fusion admin** des doublons existants + **dédup robuste** (variance OCR du permis).
+- **Connecteur BDD SALTI** (SIRET / code client par raison sociale).
+- **Refonte fiche panneau** + **fiche intervenant** enrichie (statut + historique d'actions).
+- **Email matinal des relances** (cron).
 
 ### 6.3 Roadmap globale
 
-- ✅ **Phase 0** : setup, infra
-- ✅ **Phase 1** : MVP photo → IA → save (cette session)
-- ⏳ **Phase 2** : consultation, recherche
-- ⏳ **Phase 3** : enrichissement (Sirene + Tavily, scores de confiance)
-- ⏳ **Phase 4** : dashboard PC + carte Leaflet
-- ⏳ **Phase 5** : cycle commercial (templates email + relances + email matinal)
-- ⏳ **Phase 6** : polish, branding SALTI, perf, doc utilisateur
+- ✅ **MVP** : scan → IA → fiche, collaboration agence, dédup + import inter-agence,
+  cycle commercial, admin, mobile, déploiement Frankfurt.
+- ⏳ **Suite** : contacts & traçabilité, connecteur SALTI, enrichissement (Sirene/Tavily),
+  dashboard carte, email matinal, polish/branding.
 
 ---
 
