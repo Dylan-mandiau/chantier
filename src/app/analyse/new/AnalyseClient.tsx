@@ -51,8 +51,10 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Doublon détecté (même permis de construire) -> ouvre la boîte de dialogue.
+  // Doublon détecté (permis ou adresse+titre) -> ouvre la boîte de dialogue.
   const [duplicate, setDuplicate] = useState<DuplicateInfo | null>(null);
+  // L'utilisateur a vu l'alerte doublon et choisi de créer quand même.
+  const [forceCreate, setForceCreate] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +79,26 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
               email: it.email,
             }))
           );
+
+          // Détection PRÉCOCE du doublon : on prévient tout de suite (avant
+          // d'éditer) si le panneau est déjà dans l'agence. Simple SELECT
+          // indexé (~ms), aucun appel IA. Le garde-fou à l'enregistrement
+          // reste actif en filet de sécurité.
+          try {
+            const dr = await fetch("/api/chantiers/check-duplicate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projet: parsed.projet }),
+            });
+            if (dr.ok) {
+              const dj = await dr.json();
+              if (dj.duplicate && !cancelled) {
+                setDuplicate(dj.duplicate as DuplicateInfo);
+              }
+            }
+          } catch {
+            // silencieux : le contrôle à l'enregistrement prendra le relais
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Erreur inconnue");
@@ -361,7 +383,7 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
 
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-3">
         <div className="container max-w-2xl mx-auto">
-          <Button onClick={() => handleSave()} disabled={saving} className="w-full h-12 text-lg">
+          <Button onClick={() => handleSave(forceCreate)} disabled={saving} className="w-full h-12 text-lg">
             {saving ? "Enregistrement…" : "Enregistrer le chantier"}
           </Button>
         </div>
@@ -418,8 +440,10 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
               <Button
                 variant="ghost"
                 onClick={() => {
+                  // On mémorise le choix et on ferme : l'utilisateur peut
+                  // éditer puis "Enregistrer" sans être ré-alerté.
+                  setForceCreate(true);
                   setDuplicate(null);
-                  handleSave(true);
                 }}
               >
                 Créer quand même

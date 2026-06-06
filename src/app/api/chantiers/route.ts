@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
 import { chantierDedupKey } from "@/lib/dedup/chantier";
+import { detectChantierDuplicate } from "@/lib/dedup/chantier-detect";
 import { z } from "zod";
 
 const RequestSchema = z.object({
@@ -46,54 +47,18 @@ export async function POST(request: Request) {
     .single();
   const agenceId = me?.agence_id ?? null;
 
-  // === Déduplication ===
-  // Clé : permis de construire (forte) ou repli adresse+titre. SELECT indexé
-  // via service_role -> détecte aussi les chantiers d'autres commerciaux /
-  // d'autres agences. Quelques ms, aucun appel API en plus, 0 temps d'analyse.
-  // Priorité à un doublon DANS mon agence (cible de fusion collaborative).
+  // === Déduplication (garde-fou à l'enregistrement) ===
+  // Même détection que /api/chantiers/check-duplicate (appelée plus tôt, après
+  // l'analyse). dedupKey est aussi stocké sur la ligne pour les recherches.
   const dedupKey = chantierDedupKey(analyzed.projet);
-  if (!force && dedupKey) {
-    const { data: dups } = await admin
-      .from("chantiers")
-      .select("id, titre, created_by, created_at, agence_id")
-      .eq("dedup_key", dedupKey)
-      .order("created_at", { ascending: true });
-
-    if (dups && dups.length > 0) {
-      const sameAgenceDup =
-        agenceId !== null
-          ? dups.find((d) => d.agence_id === agenceId)
-          : undefined;
-      const target = sameAgenceDup ?? dups[0];
-
-      const { data: owner } = await admin
-        .from("profiles")
-        .select("nom, prenom, email")
-        .eq("id", target.created_by)
-        .single();
-      const ownerName =
-        owner?.prenom && owner?.nom
-          ? `${owner.prenom} ${owner.nom}`
-          : owner?.email ?? "un autre commercial";
-
-      const sameAgence = !!sameAgenceDup;
-      const canOpen =
-        target.created_by === user.id ||
-        (target.agence_id !== null && target.agence_id === agenceId);
-
-      return NextResponse.json(
-        {
-          duplicate: {
-            id: target.id,
-            titre: target.titre,
-            owner_name: ownerName,
-            created_at: target.created_at,
-            can_open: canOpen,
-            same_agence: sameAgence,
-          },
-        },
-        { status: 409 }
-      );
+  if (!force) {
+    const duplicate = await detectChantierDuplicate(admin, {
+      userId: user.id,
+      agenceId,
+      projet: analyzed.projet,
+    });
+    if (duplicate) {
+      return NextResponse.json({ duplicate }, { status: 409 });
     }
   }
 
