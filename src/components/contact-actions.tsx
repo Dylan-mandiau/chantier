@@ -42,24 +42,30 @@ export function ContactActions({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className="space-y-1.5">
         {telephone && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfirm({ type: "tel", value: telephone })}
-          >
-            <Phone className="size-3.5 mr-1" /> Appeler
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">📞 {telephone}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirm({ type: "tel", value: telephone })}
+            >
+              <Phone className="size-3.5 mr-1" /> Appeler
+            </Button>
+          </div>
         )}
         {email && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfirm({ type: "mail", value: email })}
-          >
-            <Mail className="size-3.5 mr-1" /> Email
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm break-all">✉️ {email}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirm({ type: "mail", value: email })}
+            >
+              <Mail className="size-3.5 mr-1" /> Email
+            </Button>
+          </div>
         )}
       </div>
 

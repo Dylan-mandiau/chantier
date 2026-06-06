@@ -120,8 +120,6 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
                 </p>
               )}
               {detail.siret && <p>🆔 SIRET {detail.siret}</p>}
-              {detail.telephone && <p>📞 {detail.telephone}</p>}
-              {detail.email && <p>📧 {detail.email}</p>}
               <ContactActions
                 telephone={detail.telephone}
                 email={detail.email}
