@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
+import { MainNav } from "@/components/main-nav";
 
 const ROLE_LABEL: Record<string, string> = {
   commercial: "Commercial",
@@ -27,6 +27,12 @@ export async function Header() {
       ? `${profile.prenom} ${profile.nom}`
       : profile?.email ?? "Utilisateur";
 
+  const initials = (
+    profile?.prenom && profile?.nom
+      ? profile.prenom[0] + profile.nom[0]
+      : (profile?.email ?? "?").slice(0, 2)
+  ).toUpperCase();
+
   const role = profile?.role ?? "";
   const roleLabel = ROLE_LABEL[role] ?? "";
   const isAdmin = role === "admin";
@@ -38,29 +44,27 @@ export async function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-      <div className="container flex h-14 items-center justify-between px-4 mx-auto">
-        <Link href="/" className="font-bold text-lg">Chantier Insight</Link>
+      <div className="container mx-auto flex h-14 items-center justify-between gap-3 px-4">
+        <Link href="/" className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-salti.svg" alt="SALTI" className="h-8 w-auto" />
+          <span className="hidden border-l pl-2.5 text-base font-bold sm:inline">
+            Chantier Insight
+          </span>
+        </Link>
 
-        {/* Desktop : liens texte complets */}
-        <div className="hidden sm:flex items-center gap-3">
-          <Link href="/entreprises" className="text-sm hover:underline">
-            🏢 Entreprises
-          </Link>
-          <Link href="/relances" className="text-sm hover:underline">
-            🔔 Relances
-          </Link>
-          {isManager && (
-            <Link href="/admin" className="text-sm hover:underline">
-              {isAdmin ? "🛡 Admin" : "👥 Mon équipe"}
-            </Link>
-          )}
-          <span className="text-sm text-muted-foreground">{displayName}</span>
-          <form action="/auth/signout" method="post">
-            <Button variant="ghost" size="sm" type="submit">Déconnexion</Button>
-          </form>
+        {/* Desktop : nav + profil */}
+        <div className="hidden sm:block">
+          <MainNav
+            displayName={displayName}
+            roleLabel={roleLabel}
+            initials={initials}
+            isManager={isManager}
+            isAdmin={isAdmin}
+          />
         </div>
 
-        {/* Mobile (GSM) : menu hamburger ☰ avec libellés texte */}
+        {/* Mobile : menu hamburger */}
         <div className="sm:hidden">
           <MobileNav
             displayName={displayName}

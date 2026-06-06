@@ -23,6 +23,8 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-4 bg-muted/30">
       <Card className="w-full max-w-md">
         <CardHeader>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-salti.svg" alt="SALTI" className="mx-auto mb-1 h-10 w-auto" />
           <CardTitle className="text-center text-2xl">Chantier Insight</CardTitle>
           <p className="text-center text-sm text-muted-foreground">
             SALTI · Intelligence terrain
