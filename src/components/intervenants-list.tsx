@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { ContactActions } from "@/components/contact-actions";
 import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
 import { PremierContactButton } from "@/components/premier-contact-button";
 import { PlanifierRelanceButton } from "@/components/planifier-relance-button";
@@ -108,26 +108,11 @@ export function IntervenantsList({
                 <StatutCommercialBadge statut={it.statut} />
               </div>
 
-              {(it.telephone || it.email) && (
-                <div className="flex flex-wrap gap-2">
-                  {it.telephone && (
-                    <a
-                      href={`tel:${it.telephone}`}
-                      className={buttonVariants({ variant: "outline", size: "sm" })}
-                    >
-                      📞 {it.telephone}
-                    </a>
-                  )}
-                  {it.email && (
-                    <a
-                      href={`mailto:${it.email}`}
-                      className={buttonVariants({ variant: "outline", size: "sm" })}
-                    >
-                      📧 Email
-                    </a>
-                  )}
-                </div>
-              )}
+              <ContactActions
+                telephone={it.telephone}
+                email={it.email}
+                nom={it.raison_sociale}
+              />
 
               {/* Actions sur leur propre ligne -> toujours accessibles sur mobile */}
               <div className="flex flex-wrap gap-2">

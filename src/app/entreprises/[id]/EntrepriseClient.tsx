@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/back-button";
+import { ContactActions } from "@/components/contact-actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,16 +120,13 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
                 </p>
               )}
               {detail.siret && <p>🆔 SIRET {detail.siret}</p>}
-              {detail.telephone && (
-                <p>
-                  📞 <a href={`tel:${detail.telephone}`} className="underline">{detail.telephone}</a>
-                </p>
-              )}
-              {detail.email && (
-                <p>
-                  📧 <a href={`mailto:${detail.email}`} className="underline">{detail.email}</a>
-                </p>
-              )}
+              {detail.telephone && <p>📞 {detail.telephone}</p>}
+              {detail.email && <p>📧 {detail.email}</p>}
+              <ContactActions
+                telephone={detail.telephone}
+                email={detail.email}
+                nom={detail.raison_sociale}
+              />
               {detail.site_web && (
                 <p>
                   🌐 <a href={detail.site_web} target="_blank" rel="noreferrer" className="underline">{detail.site_web}</a>
