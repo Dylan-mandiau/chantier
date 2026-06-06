@@ -260,6 +260,114 @@ export interface Database {
         };
         Relationships: [];
       };
+      email_templates: {
+        Row: {
+          id: string;
+          nom: string;
+          sujet: string;
+          corps: string;
+          type: "premier_contact" | "relance" | "rdv";
+          created_by: string | null;
+          actif: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nom: string;
+          sujet: string;
+          corps: string;
+          type: "premier_contact" | "relance" | "rdv";
+          created_by?: string | null;
+          actif?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          nom?: string;
+          sujet?: string;
+          corps?: string;
+          type?: "premier_contact" | "relance" | "rdv";
+          created_by?: string | null;
+          actif?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      contacts_envoyes: {
+        Row: {
+          id: string;
+          entreprise_id: string;
+          intervenant_id: string | null;
+          template_id: string | null;
+          envoye_par: string;
+          envoye_at: string;
+          sujet: string;
+          corps: string;
+          statut: "envoye" | "repondu" | "pas_de_reponse" | "refus" | "converti";
+          notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          entreprise_id: string;
+          intervenant_id?: string | null;
+          template_id?: string | null;
+          envoye_par: string;
+          envoye_at?: string;
+          sujet: string;
+          corps: string;
+          statut?: "envoye" | "repondu" | "pas_de_reponse" | "refus" | "converti";
+          notes?: string | null;
+        };
+        Update: {
+          id?: string;
+          entreprise_id?: string;
+          intervenant_id?: string | null;
+          template_id?: string | null;
+          envoye_par?: string;
+          envoye_at?: string;
+          sujet?: string;
+          corps?: string;
+          statut?: "envoye" | "repondu" | "pas_de_reponse" | "refus" | "converti";
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
+      relances: {
+        Row: {
+          id: string;
+          entreprise_id: string;
+          created_by: string;
+          date_relance: string;
+          motif: string;
+          chantier_id: string | null;
+          status: "planifiee" | "faite" | "reportee" | "annulee";
+          fait_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entreprise_id: string;
+          created_by: string;
+          date_relance: string;
+          motif: string;
+          chantier_id?: string | null;
+          status?: "planifiee" | "faite" | "reportee" | "annulee";
+          fait_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entreprise_id?: string;
+          created_by?: string;
+          date_relance?: string;
+          motif?: string;
+          chantier_id?: string | null;
+          status?: "planifiee" | "faite" | "reportee" | "annulee";
+          fait_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
