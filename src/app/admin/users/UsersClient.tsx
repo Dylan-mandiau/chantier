@@ -302,7 +302,7 @@ export function UsersClient({
     }`;
 
   return (
-    <main className="container max-w-4xl mx-auto p-4 space-y-4 pb-20">
+    <main className="container max-w-6xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between">
         <Link href="/admin">
           <Button variant="ghost" size="sm">← Supervision</Button>
@@ -345,7 +345,7 @@ export function UsersClient({
           </Card>
 
           {/* Grille d'agences */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
             {filteredAgences.length === 0 && (
               <p className="col-span-full text-sm text-muted-foreground text-center py-8">
                 Aucune agence ne correspond.

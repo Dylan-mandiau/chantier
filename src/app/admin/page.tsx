@@ -297,7 +297,7 @@ export default async function AdminDashboardPage({
   });
 
   return (
-    <main className="container max-w-4xl mx-auto p-4 space-y-4 pb-20">
+    <main className="container max-w-6xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <Link href="/">
           <Button variant="ghost" size="sm">← Retour</Button>

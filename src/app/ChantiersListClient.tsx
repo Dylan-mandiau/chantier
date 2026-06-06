@@ -67,7 +67,7 @@ export function ChantiersListClient({
   const selectCls = "w-full bg-background border rounded px-3 py-2 text-sm";
 
   return (
-    <main className="container max-w-3xl mx-auto p-4 pb-24 space-y-4">
+    <main className="container max-w-6xl mx-auto p-4 pb-24 space-y-4">
       <h1 className="text-2xl font-bold">
         {isAgence ? "Chantiers de mon agence" : "Mes chantiers"} ({filtered.length}
         {filtered.length !== items.length ? ` / ${items.length}` : ""})
@@ -130,7 +130,7 @@ export function ChantiersListClient({
               Aucun chantier ne correspond à ta recherche.
             </p>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((c) => (
                 <ChantierCard
                   key={c.id}
@@ -149,7 +149,7 @@ export function ChantiersListClient({
         </>
       )}
 
-      <div className="fixed bottom-4 left-4 right-4 max-w-3xl mx-auto">
+      <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto">
         <Link href="/nouveau">
           <Button size="lg" className="w-full h-14 text-lg shadow-lg">
             <Plus className="size-6 mr-2" />

@@ -51,7 +51,7 @@ export default async function RelancesPage({
     }`;
 
   return (
-    <main className="container max-w-2xl mx-auto p-4 space-y-4 pb-20">
+    <main className="container max-w-4xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between">
         <Link href="/">
           <Button variant="ghost" size="sm">← Retour</Button>

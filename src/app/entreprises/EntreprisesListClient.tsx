@@ -105,7 +105,7 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
   const selectCls = "w-full bg-background border rounded px-3 py-2 text-sm";
 
   return (
-    <main className="container max-w-2xl mx-auto p-4 space-y-4 pb-20">
+    <main className="container max-w-5xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between">
         <Link href="/">
           <Button variant="ghost" size="sm">← Retour</Button>
@@ -181,7 +181,7 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
       </Card>
 
       {/* Liste filtrée */}
-      <div className="space-y-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {filtered.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
             Aucune entreprise ne correspond à ta recherche.
