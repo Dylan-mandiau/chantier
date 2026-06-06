@@ -38,31 +38,31 @@ export function MobileNav({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Ouvrir le menu"
-        className="inline-flex size-9 items-center justify-center rounded-md text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex size-11 items-center justify-center rounded-md text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Menu className="size-5" />
+        <Menu className="size-6" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-56">
-        <div className="px-2 py-1.5">
-          <p className="text-sm font-semibold text-foreground">{displayName}</p>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-72 p-1.5">
+        <div className="px-3 py-2.5">
+          <p className="text-base font-semibold text-foreground">{displayName}</p>
           {roleLabel && (
-            <p className="text-xs text-muted-foreground">{roleLabel}</p>
+            <p className="text-sm text-muted-foreground">{roleLabel}</p>
           )}
         </div>
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem render={<Link href="/" />}>
-          <HardHat /> Mes chantiers
+        <DropdownMenuItem render={<Link href="/" />} className="gap-3 px-3 py-3 text-base">
+          <HardHat className="size-5" /> Mes chantiers
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/entreprises" />}>
-          <Building2 /> Entreprises
+        <DropdownMenuItem render={<Link href="/entreprises" />} className="gap-3 px-3 py-3 text-base">
+          <Building2 className="size-5" /> Entreprises
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/relances" />}>
-          <Bell /> Mes relances
+        <DropdownMenuItem render={<Link href="/relances" />} className="gap-3 px-3 py-3 text-base">
+          <Bell className="size-5" /> Mes relances
         </DropdownMenuItem>
         {isManager && (
-          <DropdownMenuItem render={<Link href="/admin" />}>
-            {isAdmin ? <Shield /> : <Users />}
+          <DropdownMenuItem render={<Link href="/admin" />} className="gap-3 px-3 py-3 text-base">
+            {isAdmin ? <Shield className="size-5" /> : <Users className="size-5" />}
             {isAdmin ? "Admin" : "Mon équipe"}
           </DropdownMenuItem>
         )}
@@ -71,12 +71,12 @@ export function MobileNav({
 
         {/* Déconnexion : POST form. Plain button (pas un DropdownMenuItem) pour
             garantir la soumission du form sans interception du menu. */}
-        <form action="/auth/signout" method="post" className="p-1">
+        <form action="/auth/signout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-destructive outline-none hover:bg-destructive/10"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-base font-medium text-destructive outline-none hover:bg-destructive/10"
           >
-            <LogOut className="size-4" /> Déconnexion
+            <LogOut className="size-5" /> Déconnexion
           </button>
         </form>
       </DropdownMenuContent>
