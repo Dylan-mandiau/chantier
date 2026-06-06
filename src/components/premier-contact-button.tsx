@@ -120,14 +120,14 @@ export function PremierContactButton({
           Premier contact
         </Button>
       } />
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] grid-rows-[auto_minmax(0,1fr)_auto]">
         <DialogHeader>
           <DialogTitle>Envoyer un premier contact à {entreprise.raison_sociale}</DialogTitle>
           <DialogDescription>
             Le mail s&apos;ouvrira dans ton client mail (Outlook/Gmail). Tu pourras éditer avant d&apos;envoyer.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-y-auto pr-1">
           <div className="space-y-1">
             <Label>Template</Label>
             <select
