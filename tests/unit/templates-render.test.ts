@@ -44,6 +44,18 @@ describe("renderTemplate", () => {
     expect(result).toBe("Dylan Fournier");
   });
 
+  it("génère un bloc PS code client quand connu", () => {
+    const vars = { ...baseVars, code_client_salti: "RENOCHEV" };
+    const result = renderTemplate("SALTI{{code_client_salti_ps}}", vars);
+    expect(result).toContain("\n\nNB :");
+    expect(result).toContain("RENOCHEV");
+  });
+
+  it("PS code client vide quand pas de code", () => {
+    const result = renderTemplate("SALTI{{code_client_salti_ps}}", baseVars);
+    expect(result).toBe("SALTI");
+  });
+
   it("variables manquantes restent sous forme {{var}} sans planter", () => {
     expect(
       renderTemplate("Hello {{inconnue}} et {{raison_sociale}}", baseVars)

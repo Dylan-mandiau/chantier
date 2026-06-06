@@ -23,6 +23,9 @@ export async function Header() {
       <div className="container flex h-14 items-center justify-between px-4 mx-auto">
         <Link href="/" className="font-bold text-lg">Chantier Insight</Link>
         <div className="flex items-center gap-3">
+          <Link href="/entreprises" className="text-sm hover:underline">
+            🏢 <span className="hidden sm:inline">Entreprises</span>
+          </Link>
           <Link href="/relances" className="text-sm hover:underline">
             🔔 <span className="hidden sm:inline">Relances</span>
           </Link>

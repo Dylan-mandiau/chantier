@@ -25,6 +25,11 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
   const router = useRouter();
   const [analyzing, setAnalyzing] = useState(true);
   const [data, setData] = useState<AnalyzedPanneau | null>(null);
+  // Valeurs telles que lues par l'IA, conservées pour distinguer
+  // "panneau" (inchangé) de "saisi" (modifié/ajouté à la main).
+  const [iaValues, setIaValues] = useState<
+    { telephone: string | null; email: string | null }[]
+  >([]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +48,16 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
           throw new Error(body.error ?? "Échec de l'analyse");
         }
         const payload = await res.json();
-        if (!cancelled) setData(payload.parsed);
+        if (!cancelled) {
+          const parsed: AnalyzedPanneau = payload.parsed;
+          setData(parsed);
+          setIaValues(
+            parsed.intervenants.map((it) => ({
+              telephone: it.telephone,
+              email: it.email,
+            }))
+          );
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Erreur inconnue");
       } finally {
@@ -52,6 +66,20 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
     })();
     return () => { cancelled = true; };
   }, [photoPath]);
+
+  // Détermine la source d'un champ contact pour le badge de confiance :
+  //  - valeur vide -> undefined (badge "manquant")
+  //  - identique à ce que l'IA a lu -> "panneau"
+  //  - différente / ajoutée à la main -> "manuel" (affiché "saisi")
+  function fieldSource(
+    idx: number,
+    field: "telephone" | "email",
+    value: string | null
+  ): "panneau" | "manuel" | undefined {
+    if (!value) return undefined;
+    const original = iaValues[idx]?.[field] ?? null;
+    return original && original === value ? "panneau" : "manuel";
+  }
 
   function updateProjet<K extends keyof AnalyzedPanneau["projet"]>(
     key: K,
@@ -252,8 +280,12 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                     placeholder="Téléphone"
                   />
                   <ConfidenceBadge
-                    source={it.telephone ? "panneau" : undefined}
-                    confidence={it.confiance_lecture}
+                    source={fieldSource(idx, "telephone", it.telephone)}
+                    confidence={
+                      fieldSource(idx, "telephone", it.telephone) === "panneau"
+                        ? it.confiance_lecture
+                        : undefined
+                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -263,8 +295,12 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                     placeholder="Email"
                   />
                   <ConfidenceBadge
-                    source={it.email ? "panneau" : undefined}
-                    confidence={it.confiance_lecture}
+                    source={fieldSource(idx, "email", it.email)}
+                    confidence={
+                      fieldSource(idx, "email", it.email) === "panneau"
+                        ? it.confiance_lecture
+                        : undefined
+                    }
                   />
                 </div>
               </div>
