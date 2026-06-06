@@ -165,7 +165,7 @@ export default async function ChantierDetailPage({
     });
 
   return (
-    <main className="container max-w-5xl mx-auto p-4 space-y-4">
+    <main className="container max-w-5xl mx-auto p-4 space-y-4 pb-24">
       <div className="flex items-center justify-between gap-2">
         <Link href="/">
           <Button variant="ghost" size="sm">← Retour</Button>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MobileNav } from "@/components/mobile-nav";
 import { MainNav } from "@/components/main-nav";
+import { BottomNav } from "@/components/bottom-nav";
 
 const ROLE_LABEL: Record<string, string> = {
   commercial: "Commercial",
@@ -43,6 +44,7 @@ export async function Header() {
     isAdmin;
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
       <div className="container mx-auto flex h-14 items-center justify-between gap-3 px-4">
         <Link href="/" className="flex items-center gap-2.5">
@@ -75,5 +77,7 @@ export async function Header() {
         </div>
       </div>
     </header>
+      <BottomNav isManager={isManager} isAdmin={isAdmin} />
+    </>
   );
 }

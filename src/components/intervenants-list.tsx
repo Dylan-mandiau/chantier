@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
@@ -97,26 +98,39 @@ export function IntervenantsList({
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-medium">{it.raison_sociale}</p>
+                <Link
+                  href={`/entreprises/${it.entreprise_id}`}
+                  className="font-medium underline-offset-2 hover:underline"
+                  title="Ouvrir la fiche entreprise"
+                >
+                  {it.raison_sociale}
+                </Link>
                 <StatutCommercialBadge statut={it.statut} />
               </div>
+
+              {(it.telephone || it.email) && (
+                <div className="flex flex-wrap gap-2">
+                  {it.telephone && (
+                    <a
+                      href={`tel:${it.telephone}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      📞 {it.telephone}
+                    </a>
+                  )}
+                  {it.email && (
+                    <a
+                      href={`mailto:${it.email}`}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      📧 Email
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Actions sur leur propre ligne -> toujours accessibles sur mobile */}
               <div className="flex flex-wrap gap-2">
-                {it.telephone && (
-                  <a
-                    href={`tel:${it.telephone}`}
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
-                  >
-                    📞 {it.telephone}
-                  </a>
-                )}
-                {it.email && (
-                  <a
-                    href={`mailto:${it.email}`}
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
-                  >
-                    📧 Email
-                  </a>
-                )}
                 <PremierContactButton
                   entreprise={{
                     id: it.entreprise_id,

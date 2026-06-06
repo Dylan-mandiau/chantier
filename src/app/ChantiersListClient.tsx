@@ -149,7 +149,7 @@ export function ChantiersListClient({
         </>
       )}
 
-      <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto">
+      <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto hidden sm:block">
         <Link href="/nouveau">
           <Button size="lg" className="w-full h-14 text-lg shadow-lg">
             <Plus className="size-6 mr-2" />
