@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminFilters } from "./AdminFilters";
+import { AdminChantiersList, type AdminChantierItem } from "./AdminChantiersList";
 
 type ProfileRow = {
   id: string;
@@ -204,6 +205,19 @@ export default async function AdminDashboardPage({
   const fmtDate = (iso: string) =>
     new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(iso));
 
+  const adminChantierItems: AdminChantierItem[] = chantiers.map((c) => {
+    const p = profileById.get(c.created_by);
+    return {
+      id: c.id,
+      titre: c.titre,
+      ville: c.ville,
+      parLabel: p ? profileLabel(p) : "?",
+      agenceLabel: p?.agence_id ? agenceNom.get(p.agence_id) ?? null : null,
+      dateLabel: fmtDate(c.created_at),
+      dateIso: c.created_at,
+    };
+  });
+
   return (
     <main className="container max-w-4xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -291,27 +305,8 @@ export default async function AdminDashboardPage({
         <CardHeader>
           <CardTitle>Derniers chantiers scannés ({chantiers.length})</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {chantiers.slice(0, 30).map((c) => {
-            const p = profileById.get(c.created_by);
-            return (
-              <Link key={c.id} href={`/chantiers/${c.id}`}>
-                <div className="border rounded p-3 hover:bg-muted transition-colors flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{c.titre}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {c.ville ? `📍 ${c.ville} · ` : ""}
-                      par {p ? profileLabel(p) : "?"}
-                      {p?.agence_id ? ` (${agenceNom.get(p.agence_id) ?? "—"})` : ""}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {fmtDate(c.created_at)}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+        <CardContent>
+          <AdminChantiersList items={adminChantierItems} />
         </CardContent>
       </Card>
     </main>

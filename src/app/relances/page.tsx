@@ -2,17 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { RelanceCard, type RelanceData } from "@/components/relance-card";
-
-type HistoRow = RelanceData & { fait_at: string | null };
-
-const STATUT_LABEL: Record<string, { label: string; cls: string }> = {
-  faite: { label: "✅ Faite", cls: "bg-green-100 text-green-800 border-green-300" },
-  reportee: { label: "📅 Reportée", cls: "bg-amber-100 text-amber-800 border-amber-300" },
-  annulee: { label: "✖ Annulée", cls: "bg-gray-100 text-gray-600 border-gray-300" },
-};
+import { type RelanceData } from "@/components/relance-card";
+import { RelancesAFaireClient } from "./RelancesAFaireClient";
+import { RelancesHistoClient, type HistoRow } from "./RelancesHistoClient";
 
 export default async function RelancesPage({
   searchParams,
@@ -31,9 +23,7 @@ export default async function RelancesPage({
   const baseSelect = `id, date_relance, motif, status, chantier_id, fait_at,
        entreprise:entreprises(id, raison_sociale, telephone, email, ville)`;
 
-  let aujourdhui: RelanceData[] = [];
-  let cetteSemaine: RelanceData[] = [];
-  let aVenir: RelanceData[] = [];
+  let aFaire: RelanceData[] = [];
   let histo: HistoRow[] = [];
 
   if (!isHisto) {
@@ -43,18 +33,7 @@ export default async function RelancesPage({
       .eq("status", "planifiee")
       .order("date_relance", { ascending: true })
       .returns<RelanceData[]>();
-    const relances = data ?? [];
-    const today = new Date().toISOString().slice(0, 10);
-    const inAWeek = (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 7);
-      return d.toISOString().slice(0, 10);
-    })();
-    aujourdhui = relances.filter((r) => r.date_relance <= today);
-    cetteSemaine = relances.filter(
-      (r) => r.date_relance > today && r.date_relance <= inAWeek
-    );
-    aVenir = relances.filter((r) => r.date_relance > inAWeek);
+    aFaire = data ?? [];
   } else {
     const { data } = await supabase
       .from("relances")
@@ -81,7 +60,6 @@ export default async function RelancesPage({
         <div className="w-20" />
       </div>
 
-      {/* Onglets */}
       <div className="flex gap-2">
         <Link href="/relances" className={tabCls(!isHisto)}>
           À faire
@@ -92,94 +70,9 @@ export default async function RelancesPage({
       </div>
 
       {!isHisto ? (
-        <>
-          <section className="space-y-2">
-            <h2 className="text-sm font-bold text-red-700">
-              🔴 À faire aujourd&apos;hui ({aujourdhui.length})
-            </h2>
-            {aujourdhui.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Aucune relance aujourd&apos;hui 🎉
-              </p>
-            )}
-            {aujourdhui.map((r) => (
-              <RelanceCard key={r.id} relance={r} />
-            ))}
-          </section>
-
-          <section className="space-y-2">
-            <h2 className="text-sm font-bold text-amber-700">
-              🟡 Cette semaine ({cetteSemaine.length})
-            </h2>
-            {cetteSemaine.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Aucune relance prévue cette semaine.
-              </p>
-            )}
-            {cetteSemaine.map((r) => (
-              <RelanceCard key={r.id} relance={r} />
-            ))}
-          </section>
-
-          <section className="space-y-2">
-            <h2 className="text-sm font-bold text-muted-foreground">
-              ⚪ À venir ({aVenir.length})
-            </h2>
-            {aVenir.map((r) => (
-              <RelanceCard key={r.id} relance={r} />
-            ))}
-          </section>
-        </>
+        <RelancesAFaireClient relances={aFaire} />
       ) : (
-        <section className="space-y-2">
-          <h2 className="text-sm font-bold text-muted-foreground">
-            Historique ({histo.length})
-          </h2>
-          {histo.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Aucune relance traitée pour l&apos;instant.
-            </p>
-          )}
-          {histo.map((r) => {
-            const st = STATUT_LABEL[r.status] ?? {
-              label: r.status,
-              cls: "",
-            };
-            const refDate = r.fait_at ?? r.date_relance;
-            return (
-              <Card key={r.id} className="opacity-90">
-                <CardContent className="p-3 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold">
-                      {r.entreprise?.raison_sociale ?? "—"}
-                    </p>
-                    <Badge variant="outline" className={`text-xs ${st.cls}`}>
-                      {st.label}
-                    </Badge>
-                  </div>
-                  <p className="text-sm italic text-muted-foreground">
-                    &quot;{r.motif}&quot;
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {new Intl.DateTimeFormat("fr-FR", {
-                        dateStyle: "short",
-                      }).format(new Date(refDate))}
-                    </span>
-                    {r.chantier_id && (
-                      <Link
-                        href={`/chantiers/${r.chantier_id}`}
-                        className="text-xs underline text-muted-foreground"
-                      >
-                        Voir le chantier →
-                      </Link>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </section>
+        <RelancesHistoClient rows={histo} />
       )}
     </main>
   );
