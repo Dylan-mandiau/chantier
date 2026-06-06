@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DeleteChantierButton } from "@/components/delete-chantier-button";
+import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
+import { PremierContactButton } from "@/components/premier-contact-button";
+import { PlanifierRelanceButton } from "@/components/planifier-relance-button";
+import {
+  computeStatutCommercial,
+  type StatutInputs,
+} from "@/lib/statut/compute";
 import { Pencil } from "lucide-react";
 
 // Le typage auto-généré de Supabase ne sait pas inférer la jointure
@@ -58,6 +65,79 @@ export default async function ChantierDetailPage({
   const { data: signed } = await supabase.storage
     .from("chantier-photos")
     .createSignedUrl(chantier.photo_principale_url, 1800);
+
+  // === Phase 5 : enrichir avec statut commercial par intervenant ===
+  const entrepriseIds = (intervenants ?? [])
+    .map((it) => it.entreprise?.id)
+    .filter((x): x is string => !!x);
+
+  const safeIds =
+    entrepriseIds.length > 0
+      ? entrepriseIds
+      : ["00000000-0000-0000-0000-000000000000"];
+
+  const [contactsRes, relancesRes, entreprisesRes, profileRes] =
+    await Promise.all([
+      supabase
+        .from("contacts_envoyes")
+        .select("entreprise_id, statut, envoye_at")
+        .in("entreprise_id", safeIds)
+        .order("envoye_at", { ascending: false }),
+      supabase
+        .from("relances")
+        .select("entreprise_id, date_relance, motif")
+        .in("entreprise_id", safeIds)
+        .eq("status", "planifiee")
+        .gte("date_relance", new Date().toISOString().slice(0, 10))
+        .order("date_relance", { ascending: true }),
+      supabase
+        .from("entreprises")
+        .select("id, code_client_salti")
+        .in("id", safeIds),
+      supabase
+        .from("profiles")
+        .select("nom, prenom, email")
+        .eq("id", user.id)
+        .single(),
+    ]);
+
+  const codeClientByEnt = new Map<string, string | null>();
+  (entreprisesRes.data ?? []).forEach((e) =>
+    codeClientByEnt.set(e.id, e.code_client_salti)
+  );
+
+  const lastContactByEnt = new Map<
+    string,
+    NonNullable<StatutInputs["dernierContact"]>
+  >();
+  (contactsRes.data ?? []).forEach((c) => {
+    if (!lastContactByEnt.has(c.entreprise_id)) {
+      lastContactByEnt.set(c.entreprise_id, {
+        statut: c.statut,
+        envoye_at: c.envoye_at,
+      });
+    }
+  });
+
+  const nextRelanceByEnt = new Map<
+    string,
+    NonNullable<StatutInputs["prochaineRelance"]>
+  >();
+  (relancesRes.data ?? []).forEach((r) => {
+    if (!nextRelanceByEnt.has(r.entreprise_id)) {
+      nextRelanceByEnt.set(r.entreprise_id, {
+        date_relance: r.date_relance,
+        motif: r.motif,
+      });
+    }
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const profile = profileRes.data;
+  const commercialNom =
+    profile?.prenom && profile?.nom
+      ? `${profile.prenom} ${profile.nom}`
+      : profile?.email ?? "Commercial SALTI";
 
   return (
     <main className="container max-w-2xl mx-auto p-4 space-y-4">
@@ -115,8 +195,14 @@ export default async function ChantierDetailPage({
           {intervenants?.map((it) => {
             const ent = it.entreprise;
             if (!ent) return null;
+            const statut = computeStatutCommercial({
+              codeClientSalti: codeClientByEnt.get(ent.id) ?? null,
+              dernierContact: lastContactByEnt.get(ent.id) ?? null,
+              prochaineRelance: nextRelanceByEnt.get(ent.id) ?? null,
+              today,
+            });
             return (
-              <div key={it.id} className="border rounded p-3 space-y-1">
+              <div key={it.id} className="border rounded p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <Badge variant="secondary">
                     {it.lot_numero ? `Lot ${it.lot_numero}` : it.role.replace(/_/g, " ")}
@@ -125,7 +211,10 @@ export default async function ChantierDetailPage({
                     <span className="text-xs text-muted-foreground">{it.lot_intitule}</span>
                   )}
                 </div>
-                <p className="font-medium">{ent.raison_sociale}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium">{ent.raison_sociale}</p>
+                  <StatutCommercialBadge statut={statut} />
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {ent.telephone && (
                     <a
@@ -143,6 +232,26 @@ export default async function ChantierDetailPage({
                       📧 {ent.email}
                     </a>
                   )}
+                  <PremierContactButton
+                    entreprise={{
+                      id: ent.id,
+                      raison_sociale: ent.raison_sociale,
+                      email: ent.email,
+                      code_client_salti: codeClientByEnt.get(ent.id) ?? null,
+                    }}
+                    commercialNom={commercialNom}
+                    intervenantContext={{
+                      intervenant_id: it.id,
+                      chantier_titre: chantier.titre,
+                      lot_numero: it.lot_numero,
+                      lot_intitule: it.lot_intitule,
+                    }}
+                  />
+                  <PlanifierRelanceButton
+                    entrepriseId={ent.id}
+                    entrepriseNom={ent.raison_sociale}
+                    chantierId={chantier.id}
+                  />
                 </div>
               </div>
             );
