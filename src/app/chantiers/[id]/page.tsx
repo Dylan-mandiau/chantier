@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteChantierButton } from "@/components/delete-chantier-button";
+import { BackButton } from "@/components/back-button";
 import {
   IntervenantsList,
   type IntervenantItem,
@@ -167,9 +168,7 @@ export default async function ChantierDetailPage({
   return (
     <main className="container max-w-5xl mx-auto p-4 space-y-4 pb-24">
       <div className="flex items-center justify-between gap-2">
-        <Link href="/">
-          <Button variant="ghost" size="sm">← Retour</Button>
-        </Link>
+        <BackButton fallback="/" />
         <div className="flex items-center gap-2">
           <Link href={`/chantiers/${id}/edit`}>
             <Button variant="outline" size="sm">

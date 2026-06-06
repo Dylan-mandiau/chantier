@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/back-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,9 +94,7 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
   return (
     <main className="container max-w-2xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between gap-2">
-        <Link href="/entreprises">
-          <Button variant="ghost" size="sm">← Entreprises</Button>
-        </Link>
+        <BackButton fallback="/entreprises" />
         {!editing && (
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             <Pencil className="size-3.5 mr-1" /> Modifier
