@@ -6,6 +6,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/back-button";
 import { ContactActions } from "@/components/contact-actions";
+import {
+  ContactsManager,
+  type Personne,
+  type ContactAudit,
+} from "@/components/contacts-manager";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +35,8 @@ export interface EntrepriseDetail {
   chantiers: { id: string; titre: string; ville: string | null; lots: string[] }[];
   relances: { id: string; date_relance: string; motif: string; status: string }[];
   contacts: { id: string; envoye_at: string; sujet: string; statut: string }[];
+  personnes: Personne[];
+  personnesAudit: ContactAudit[];
 }
 
 type EditableFields = {
@@ -208,6 +215,20 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Contacts (personnes) */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Contacts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ContactsManager
+            entrepriseId={detail.id}
+            personnes={detail.personnes}
+            audit={detail.personnesAudit}
+          />
         </CardContent>
       </Card>
 

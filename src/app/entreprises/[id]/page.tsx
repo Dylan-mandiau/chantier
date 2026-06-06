@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import {
   computeStatutCommercial,
   type StatutInputs,
@@ -34,6 +34,28 @@ type ContactRow = {
   statut: string;
 };
 
+type PersonneRow = {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  fonction: string | null;
+  telephone: string | null;
+  telephone_portable: string | null;
+  email: string | null;
+  compte_extranet: boolean;
+  notes: string | null;
+  created_by: string | null;
+};
+
+type AuditRow = {
+  id: string;
+  action: string;
+  contact_label: string | null;
+  changements: Record<string, { avant: unknown; apres: unknown }> | null;
+  modifie_at: string;
+  modifie_par: string | null;
+};
+
 export default async function EntrepriseDetailPage({
   params,
 }: {
@@ -54,28 +76,48 @@ export default async function EntrepriseDetailPage({
 
   if (!entreprise) notFound();
 
-  const [interventionsRes, relancesRes, contactsRes] = await Promise.all([
-    supabase
-      .from("chantier_intervenants")
-      .select(
-        `role, lot_numero, lot_intitule,
+  const [interventionsRes, relancesRes, contactsRes, personnesRes, auditRes] =
+    await Promise.all([
+      supabase
+        .from("chantier_intervenants")
+        .select(
+          `role, lot_numero, lot_intitule,
          chantier:chantiers(id, titre, ville, code_postal, created_at)`
-      )
-      .eq("entreprise_id", id)
-      .returns<InterventionRow[]>(),
-    supabase
-      .from("relances")
-      .select("id, date_relance, motif, status")
-      .eq("entreprise_id", id)
-      .order("date_relance", { ascending: true })
-      .returns<RelanceRow[]>(),
-    supabase
-      .from("contacts_envoyes")
-      .select("id, envoye_at, sujet, statut")
-      .eq("entreprise_id", id)
-      .order("envoye_at", { ascending: false })
-      .returns<ContactRow[]>(),
-  ]);
+        )
+        .eq("entreprise_id", id)
+        .returns<InterventionRow[]>(),
+      supabase
+        .from("relances")
+        .select("id, date_relance, motif, status")
+        .eq("entreprise_id", id)
+        .order("date_relance", { ascending: true })
+        .returns<RelanceRow[]>(),
+      supabase
+        .from("contacts_envoyes")
+        .select("id, envoye_at, sujet, statut")
+        .eq("entreprise_id", id)
+        .order("envoye_at", { ascending: false })
+        .returns<ContactRow[]>(),
+      // Contacts (personnes) — RLS niveau agence
+      supabase
+        .from("contacts")
+        .select(
+          "id, prenom, nom, fonction, telephone, telephone_portable, email, compte_extranet, notes, created_by"
+        )
+        .eq("entreprise_id", id)
+        .order("created_at", { ascending: true })
+        .returns<PersonneRow[]>(),
+      // Traçabilité contacts (50 derniers événements)
+      supabase
+        .from("contact_modifications")
+        .select(
+          "id, action, contact_label, changements, modifie_at, modifie_par"
+        )
+        .eq("entreprise_id", id)
+        .order("modifie_at", { ascending: false })
+        .limit(50)
+        .returns<AuditRow[]>(),
+    ]);
 
   const today = new Date().toISOString().slice(0, 10);
   const dernierContact: StatutInputs["dernierContact"] =
@@ -124,6 +166,52 @@ export default async function EntrepriseDetailPage({
     }
   });
 
+  // Résolution des noms d'auteurs : profiles RLS = self-only, donc admin client.
+  const personnesRows = personnesRes.data ?? [];
+  const auditRows = auditRes.data ?? [];
+  const authorIds = [
+    ...new Set(
+      [
+        ...personnesRows.map((p) => p.created_by),
+        ...auditRows.map((a) => a.modifie_par),
+      ].filter((x): x is string => !!x)
+    ),
+  ];
+  const authorMap = new Map<string, string>();
+  if (authorIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: authors } = await admin
+      .from("profiles")
+      .select("id, prenom, nom, email")
+      .in("id", authorIds);
+    (authors ?? []).forEach((a) => {
+      const nom = [a.prenom, a.nom].filter(Boolean).join(" ").trim();
+      authorMap.set(a.id, nom || a.email || "Inconnu");
+    });
+  }
+
+  const personnes = personnesRows.map((p) => ({
+    id: p.id,
+    prenom: p.prenom,
+    nom: p.nom,
+    fonction: p.fonction,
+    telephone: p.telephone,
+    telephone_portable: p.telephone_portable,
+    email: p.email,
+    compte_extranet: p.compte_extranet,
+    notes: p.notes,
+    auteur: p.created_by ? authorMap.get(p.created_by) ?? null : null,
+  }));
+
+  const personnesAudit = auditRows.map((a) => ({
+    id: a.id,
+    action: a.action,
+    contact_label: a.contact_label,
+    changements: a.changements,
+    modifie_at: a.modifie_at,
+    auteur: a.modifie_par ? authorMap.get(a.modifie_par) ?? null : null,
+  }));
+
   const detail: EntrepriseDetail = {
     id: entreprise.id,
     raison_sociale: entreprise.raison_sociale,
@@ -139,6 +227,8 @@ export default async function EntrepriseDetailPage({
     chantiers: [...chantiersMap.values()],
     relances: (relancesRes.data ?? []).filter((r) => r.status === "planifiee"),
     contacts: contactsRes.data ?? [],
+    personnes,
+    personnesAudit,
   };
 
   return <EntrepriseClient detail={detail} />;
