@@ -18,7 +18,9 @@ export async function Header() {
       ? `${profile.prenom} ${profile.nom}`
       : profile?.email ?? "Utilisateur";
 
-  const isAdmin = profile?.role === "admin";
+  const role = profile?.role ?? "";
+  const isAdmin = role === "admin";
+  const isManager = role === "rc" || role === "chef_secteur" || isAdmin;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
@@ -31,9 +33,12 @@ export async function Header() {
           <Link href="/relances" className="text-sm hover:underline">
             🔔 <span className="hidden sm:inline">Relances</span>
           </Link>
-          {isAdmin && (
+          {isManager && (
             <Link href="/admin" className="text-sm hover:underline">
-              🛡 <span className="hidden sm:inline">Admin</span>
+              {isAdmin ? "🛡" : "👥"}{" "}
+              <span className="hidden sm:inline">
+                {isAdmin ? "Admin" : "Mon équipe"}
+              </span>
             </Link>
           )}
           <span className="text-sm text-muted-foreground hidden sm:inline">{displayName}</span>

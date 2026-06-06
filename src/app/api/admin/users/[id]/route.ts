@@ -10,6 +10,7 @@ type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
 const PatchSchema = z.object({
   role: z.enum(["commercial", "rc", "chef_secteur", "admin"]).optional(),
   agence_id: z.string().uuid().nullable().optional(),
+  manager_id: z.string().uuid().nullable().optional(),
 });
 
 // PATCH — modifier le rôle et/ou l'agence d'un utilisateur (admin only)

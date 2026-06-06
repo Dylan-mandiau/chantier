@@ -43,6 +43,7 @@ export interface Database {
           prenom: string | null;
           role: "commercial" | "rc" | "chef_secteur" | "admin";
           agence_id: string | null;
+          manager_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -52,6 +53,7 @@ export interface Database {
           prenom?: string | null;
           role?: "commercial" | "rc" | "chef_secteur" | "admin";
           agence_id?: string | null;
+          manager_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -61,6 +63,7 @@ export interface Database {
           prenom?: string | null;
           role?: "commercial" | "rc" | "chef_secteur" | "admin";
           agence_id?: string | null;
+          manager_id?: string | null;
           created_at?: string;
         };
         Relationships: [];

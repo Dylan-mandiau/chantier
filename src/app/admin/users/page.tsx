@@ -19,7 +19,7 @@ export default async function AdminUsersPage() {
   const [{ data: users }, { data: agences }] = await Promise.all([
     admin
       .from("profiles")
-      .select("id, email, nom, prenom, role, agence_id")
+      .select("id, email, nom, prenom, role, agence_id, manager_id")
       .order("email"),
     admin.from("agences").select("id, nom, ville").order("nom"),
   ]);

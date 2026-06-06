@@ -12,6 +12,7 @@ type ProfileRow = {
   prenom: string | null;
   role: string;
   agence_id: string | null;
+  manager_id: string | null;
 };
 
 type ChantierRow = {
@@ -26,6 +27,30 @@ function profileLabel(p: ProfileRow): string {
   return p.prenom && p.nom ? `${p.prenom} ${p.nom}` : p.email;
 }
 
+// Sous-arbre managé (récursif via manager_id), racine incluse.
+function computeSubtree(rootId: string, profiles: ProfileRow[]): Set<string> {
+  const childrenByManager = new Map<string, string[]>();
+  profiles.forEach((p) => {
+    if (p.manager_id) {
+      const arr = childrenByManager.get(p.manager_id) ?? [];
+      arr.push(p.id);
+      childrenByManager.set(p.manager_id, arr);
+    }
+  });
+  const result = new Set<string>([rootId]);
+  const queue = [rootId];
+  while (queue.length) {
+    const cur = queue.pop()!;
+    for (const child of childrenByManager.get(cur) ?? []) {
+      if (!result.has(child)) {
+        result.add(child);
+        queue.push(child);
+      }
+    }
+  }
+  return result;
+}
+
 export default async function AdminDashboardPage({
   searchParams,
 }: {
@@ -33,7 +58,7 @@ export default async function AdminDashboardPage({
 }) {
   const sp = await searchParams;
 
-  // Gate admin
+  // Gate : admin OU manager (rc / chef_secteur)
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,14 +69,16 @@ export default async function AdminDashboardPage({
     .select("role")
     .eq("id", user.id)
     .single();
-  if (me?.role !== "admin") notFound();
+  const role = me?.role ?? "";
+  if (!["rc", "chef_secteur", "admin"].includes(role)) notFound();
+  const isAdmin = role === "admin";
 
-  // Données équipe via service_role (bypass RLS)
+  // Données via service_role (bypass RLS), filtrées ensuite au périmètre visible
   const admin = createAdminClient();
   const [{ data: profilesData }, { data: agencesData }] = await Promise.all([
     admin
       .from("profiles")
-      .select("id, email, nom, prenom, role, agence_id")
+      .select("id, email, nom, prenom, role, agence_id, manager_id")
       .order("email"),
     admin.from("agences").select("id, nom").order("nom"),
   ]);
@@ -61,27 +88,33 @@ export default async function AdminDashboardPage({
   const agenceNom = new Map(agences.map((a) => [a.id, a.nom]));
   const profileById = new Map(profiles.map((p) => [p.id, p]));
 
-  // Résolution du périmètre commercial selon les filtres
+  // Périmètre visible : admin = tout le monde ; manager = son sous-arbre
+  const visibleIds = isAdmin
+    ? new Set(profiles.map((p) => p.id))
+    : computeSubtree(user.id, profiles);
+  const visibleProfiles = profiles.filter((p) => visibleIds.has(p.id));
+
+  // Filtres
   const days = Math.max(1, parseInt(sp.days ?? "30", 10) || 30);
   const since = new Date();
   since.setDate(since.getDate() - days);
   const sinceIso = since.toISOString();
 
-  let commercialIds = profiles.map((p) => p.id);
+  let commercialIds = [...visibleIds];
   if (sp.agence) {
-    commercialIds = profiles
-      .filter((p) => p.agence_id === sp.agence)
-      .map((p) => p.id);
+    commercialIds = commercialIds.filter(
+      (id) => profileById.get(id)?.agence_id === sp.agence
+    );
   }
-  if (sp.commercial) {
-    commercialIds = commercialIds.filter((id) => id === sp.commercial);
+  if (sp.commercial && visibleIds.has(sp.commercial)) {
+    commercialIds = [sp.commercial];
   }
   const safeCom =
     commercialIds.length > 0
       ? commercialIds
       : ["00000000-0000-0000-0000-000000000000"];
 
-  // Chantiers de la période + périmètre
+  // Chantiers période + périmètre
   const { data: chantiersData } = await admin
     .from("chantiers")
     .select("id, titre, ville, created_by, created_at")
@@ -95,7 +128,6 @@ export default async function AdminDashboardPage({
       ? chantierIds
       : ["00000000-0000-0000-0000-000000000000"];
 
-  // Entreprises distinctes + contacts + relances
   const [{ data: intervData }, { data: contactsData }, { data: relancesData }] =
     await Promise.all([
       admin
@@ -157,33 +189,50 @@ export default async function AdminDashboardPage({
     (a, b) => b.nbChantiers - a.nbChantiers
   );
 
-  const commerciauxOptions = profiles.map((p) => ({
+  // Options de filtres limitées au périmètre visible
+  const commerciauxOptions = visibleProfiles.map((p) => ({
     id: p.id,
     label: profileLabel(p),
   }));
+  const visibleAgenceIds = new Set(
+    visibleProfiles.map((p) => p.agence_id).filter((x): x is string => !!x)
+  );
+  const agencesForFilter = isAdmin
+    ? agences
+    : agences.filter((a) => visibleAgenceIds.has(a.id));
 
   const fmtDate = (iso: string) =>
     new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(iso));
 
   return (
     <main className="container max-w-4xl mx-auto p-4 space-y-4 pb-20">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <Link href="/">
           <Button variant="ghost" size="sm">← Retour</Button>
         </Link>
-        <h1 className="text-lg font-semibold">🛡 Supervision équipe</h1>
-        <Link href="/admin/users">
-          <Button variant="outline" size="sm">Utilisateurs & agences</Button>
-        </Link>
+        <h1 className="text-lg font-semibold">
+          {isAdmin ? "🛡 Supervision équipe" : "👥 Mon équipe"}
+        </h1>
+        {isAdmin ? (
+          <div className="flex gap-2">
+            <Link href="/admin/templates">
+              <Button variant="outline" size="sm">Templates</Button>
+            </Link>
+            <Link href="/admin/users">
+              <Button variant="outline" size="sm">Utilisateurs</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="w-16" />
+        )}
       </div>
 
       <Card>
         <CardContent className="p-4">
-          <AdminFilters agences={agences} commerciaux={commerciauxOptions} />
+          <AdminFilters agences={agencesForFilter} commerciaux={commerciauxOptions} />
         </CardContent>
       </Card>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Kpi value={chantiers.length} label="Chantiers scannés" />
         <Kpi value={entreprisesDistinctes} label="Entreprises uniques" />
@@ -191,7 +240,6 @@ export default async function AdminDashboardPage({
         <Kpi value={nbRelances} label="Relances actives" />
       </div>
 
-      {/* Activité par commercial */}
       <Card>
         <CardHeader>
           <CardTitle>Activité par commercial</CardTitle>
@@ -239,7 +287,6 @@ export default async function AdminDashboardPage({
         </CardContent>
       </Card>
 
-      {/* Derniers chantiers (équipe) */}
       <Card>
         <CardHeader>
           <CardTitle>Derniers chantiers scannés ({chantiers.length})</CardTitle>

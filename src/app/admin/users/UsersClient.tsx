@@ -17,6 +17,11 @@ export interface UserRow {
   prenom: string | null;
   role: "commercial" | "rc" | "chef_secteur" | "admin";
   agence_id: string | null;
+  manager_id: string | null;
+}
+
+function userLabel(u: UserRow): string {
+  return u.prenom && u.nom ? `${u.prenom} ${u.nom}` : u.email;
 }
 
 export interface AgenceRow {
@@ -48,7 +53,7 @@ export function UsersClient({
 
   async function patchUser(
     id: string,
-    patch: Partial<Pick<UserRow, "role" | "agence_id">>
+    patch: Partial<Pick<UserRow, "role" | "agence_id" | "manager_id">>
   ) {
     const res = await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
@@ -198,6 +203,27 @@ export function UsersClient({
                     {agences.map((a) => (
                       <option key={a.id} value={a.id}>{a.nom}</option>
                     ))}
+                  </select>
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] text-muted-foreground">
+                    Manager (N+1)
+                  </Label>
+                  <select
+                    className={selectCls}
+                    defaultValue={u.manager_id ?? ""}
+                    onChange={(e) =>
+                      patchUser(u.id, { manager_id: e.target.value || null })
+                    }
+                  >
+                    <option value="">— Aucun —</option>
+                    {initialUsers
+                      .filter((m) => m.id !== u.id)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {userLabel(m)} ({ROLE_LABEL[m.role]})
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
