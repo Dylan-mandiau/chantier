@@ -9,7 +9,7 @@ export async function Header() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("nom, prenom, email")
+    .select("nom, prenom, email, role")
     .eq("id", user.id)
     .single();
 
@@ -17,6 +17,8 @@ export async function Header() {
     profile?.prenom && profile?.nom
       ? `${profile.prenom} ${profile.nom}`
       : profile?.email ?? "Utilisateur";
+
+  const isAdmin = profile?.role === "admin";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
@@ -29,6 +31,11 @@ export async function Header() {
           <Link href="/relances" className="text-sm hover:underline">
             🔔 <span className="hidden sm:inline">Relances</span>
           </Link>
+          {isAdmin && (
+            <Link href="/admin" className="text-sm hover:underline">
+              🛡 <span className="hidden sm:inline">Admin</span>
+            </Link>
+          )}
           <span className="text-sm text-muted-foreground hidden sm:inline">{displayName}</span>
           <form action="/auth/signout" method="post">
             <Button variant="ghost" size="sm" type="submit">Déconnexion</Button>

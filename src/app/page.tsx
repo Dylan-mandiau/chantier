@@ -28,6 +28,9 @@ export default async function HomePage() {
       `id, titre, ville, code_postal, photo_principale_url, created_at,
        chantier_intervenants(count)`
     )
+    // Toujours "mes" chantiers, même pour un admin (qui a une vue équipe
+    // dédiée sur /admin). Sans ce filtre, la RLS admin renverrait tout.
+    .eq("created_by", user.id)
     .order("created_at", { ascending: false })
     .limit(30)
     .returns<ChantierListItem[]>();
