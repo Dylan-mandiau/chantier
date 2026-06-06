@@ -212,6 +212,93 @@ export interface Database {
         };
         Relationships: [];
       };
+      contacts: {
+        Row: {
+          id: string;
+          entreprise_id: string;
+          agence_id: string | null;
+          created_by: string | null;
+          prenom: string | null;
+          nom: string | null;
+          fonction: string | null;
+          telephone: string | null;
+          telephone_portable: string | null;
+          email: string | null;
+          compte_extranet: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          entreprise_id: string;
+          agence_id?: string | null;
+          created_by?: string | null;
+          prenom?: string | null;
+          nom?: string | null;
+          fonction?: string | null;
+          telephone?: string | null;
+          telephone_portable?: string | null;
+          email?: string | null;
+          compte_extranet?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          entreprise_id?: string;
+          agence_id?: string | null;
+          created_by?: string | null;
+          prenom?: string | null;
+          nom?: string | null;
+          fonction?: string | null;
+          telephone?: string | null;
+          telephone_portable?: string | null;
+          email?: string | null;
+          compte_extranet?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      contact_modifications: {
+        Row: {
+          id: string;
+          contact_id: string | null;
+          entreprise_id: string | null;
+          agence_id: string | null;
+          modifie_par: string | null;
+          contact_label: string | null;
+          action: string;
+          changements: Json;
+          modifie_at: string;
+        };
+        Insert: {
+          id?: string;
+          contact_id?: string | null;
+          entreprise_id?: string | null;
+          agence_id?: string | null;
+          modifie_par?: string | null;
+          contact_label?: string | null;
+          action: string;
+          changements?: Json;
+          modifie_at?: string;
+        };
+        Update: {
+          id?: string;
+          contact_id?: string | null;
+          entreprise_id?: string | null;
+          agence_id?: string | null;
+          modifie_par?: string | null;
+          contact_label?: string | null;
+          action?: string;
+          changements?: Json;
+          modifie_at?: string;
+        };
+        Relationships: [];
+      };
       chantier_intervenants: {
         Row: {
           id: string;
