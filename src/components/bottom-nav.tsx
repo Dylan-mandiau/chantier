@@ -17,6 +17,18 @@ export function BottomNav({
   isAdmin: boolean;
 }) {
   const pathname = usePathname();
+
+  // Masquée sur les parcours "focalisés" qui ont déjà leur propre barre
+  // d'action fixée en bas (capture, analyse/enregistrement, édition) — sinon
+  // elle recouvre le bouton principal (ex. "Enregistrer le chantier").
+  if (
+    pathname.startsWith("/nouveau") ||
+    pathname.startsWith("/analyse") ||
+    pathname.endsWith("/edit")
+  ) {
+    return null;
+  }
+
   const active = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
