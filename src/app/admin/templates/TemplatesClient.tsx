@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,10 @@ export function TemplatesClient({
 }) {
   const router = useRouter();
   const [templates, setTemplates] = useState(initialTemplates);
+  // Resync avec le serveur après router.refresh().
+  useEffect(() => {
+    setTemplates(initialTemplates);
+  }, [initialTemplates]);
   const [editing, setEditing] = useState<Template | null>(null);
   const [saving, setSaving] = useState(false);
 

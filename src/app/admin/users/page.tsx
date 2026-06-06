@@ -2,6 +2,10 @@ import { redirect, notFound } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { UsersClient, type UserRow, type AgenceRow } from "./UsersClient";
 
+// Toujours rendu dynamiquement : les données admin doivent être fraîches à
+// chaque chargement / router.refresh() (jamais servies depuis un cache).
+export const dynamic = "force-dynamic";
+
 export default async function AdminUsersPage() {
   const supabase = await createClient();
   const {

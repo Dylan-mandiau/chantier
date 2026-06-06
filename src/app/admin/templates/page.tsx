@@ -2,6 +2,9 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TemplatesClient, type Template } from "./TemplatesClient";
 
+// Données toujours fraîches (jamais de cache de route).
+export const dynamic = "force-dynamic";
+
 export default async function AdminTemplatesPage() {
   const supabase = await createClient();
   const {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -87,6 +87,11 @@ export function UsersClient({
 
   // === Agences ===
   const [agences, setAgences] = useState(initialAgences);
+  // Resynchronise avec le serveur après router.refresh() (sinon la liste
+  // resterait figée sur la valeur initiale jusqu'au remontage de la page).
+  useEffect(() => {
+    setAgences(initialAgences);
+  }, [initialAgences]);
   const [agencesQ, setAgencesQ] = useState("");
   const [editingAgence, setEditingAgence] = useState<AgenceRow | null>(null);
   const [newAgenceOpen, setNewAgenceOpen] = useState(false);
@@ -100,7 +105,9 @@ export function UsersClient({
   }, [agences, agencesQ]);
 
   // === Utilisateurs ===
-  const [users] = useState(initialUsers);
+  // Dérivé directement des props : après router.refresh(), la nouvelle liste
+  // serveur s'affiche immédiatement (pas de copie figée dans un useState).
+  const users = initialUsers;
   const [usersQ, setUsersQ] = useState("");
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterAgence, setFilterAgence] = useState<string>("");

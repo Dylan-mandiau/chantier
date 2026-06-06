@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,19 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
     ville: detail.ville ?? "",
     code_client_salti: detail.code_client_salti ?? "",
   });
+  // Resync le formulaire avec le serveur après router.refresh() (sinon une
+  // ré-édition après sauvegarde repartirait des anciennes valeurs).
+  useEffect(() => {
+    setForm({
+      telephone: detail.telephone ?? "",
+      email: detail.email ?? "",
+      site_web: detail.site_web ?? "",
+      adresse: detail.adresse ?? "",
+      code_postal: detail.code_postal ?? "",
+      ville: detail.ville ?? "",
+      code_client_salti: detail.code_client_salti ?? "",
+    });
+  }, [detail]);
 
   function setField(k: keyof EditableFields, v: string) {
     setForm({ ...form, [k]: v });
