@@ -1,13 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, Trash2, Save, Building2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export interface UserRow {
@@ -20,15 +29,19 @@ export interface UserRow {
   manager_id: string | null;
 }
 
-function userLabel(u: UserRow): string {
-  return u.prenom && u.nom ? `${u.prenom} ${u.nom}` : u.email;
-}
-
 export interface AgenceRow {
   id: string;
   nom: string;
   ville: string | null;
   code: string | null;
+}
+
+function userLabel(u: UserRow): string {
+  return u.prenom && u.nom ? `${u.prenom} ${u.nom}` : u.email;
+}
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 const ROLES: UserRow["role"][] = [
@@ -45,6 +58,13 @@ const ROLE_LABEL: Record<UserRow["role"], string> = {
   directeur_commercial: "Directeur commercial",
   admin: "Admin",
 };
+const ROLE_COLOR: Record<UserRow["role"], string> = {
+  commercial: "bg-blue-100 text-blue-800 border-blue-300",
+  rc: "bg-purple-100 text-purple-800 border-purple-300",
+  chef_secteur: "bg-amber-100 text-amber-800 border-amber-300",
+  directeur_commercial: "bg-rose-100 text-rose-800 border-rose-300",
+  admin: "bg-red-100 text-red-800 border-red-300 font-semibold",
+};
 
 export function UsersClient({
   initialUsers,
@@ -54,12 +74,57 @@ export function UsersClient({
   initialAgences: AgenceRow[];
 }) {
   const router = useRouter();
-  const [agences, setAgences] = useState(initialAgences);
-  const [newAgence, setNewAgence] = useState("");
-  const [newAgenceVille, setNewAgenceVille] = useState("");
-  const [newAgenceCode, setNewAgenceCode] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [tab, setTab] = useState<"agences" | "users">("agences");
 
+  // === Agences ===
+  const [agences, setAgences] = useState(initialAgences);
+  const [agencesQ, setAgencesQ] = useState("");
+  const [editingAgence, setEditingAgence] = useState<AgenceRow | null>(null);
+  const [newAgenceOpen, setNewAgenceOpen] = useState(false);
+
+  const filteredAgences = useMemo(() => {
+    const nq = normalize(agencesQ.trim());
+    if (!nq) return agences;
+    return agences.filter((a) =>
+      normalize([a.nom, a.code ?? "", a.ville ?? ""].join(" ")).includes(nq)
+    );
+  }, [agences, agencesQ]);
+
+  // === Utilisateurs ===
+  const [users] = useState(initialUsers);
+  const [usersQ, setUsersQ] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("");
+  const [filterAgence, setFilterAgence] = useState<string>("");
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+
+  const agenceById = useMemo(
+    () => new Map(agences.map((a) => [a.id, a])),
+    [agences]
+  );
+
+  const filteredUsers = useMemo(() => {
+    const nq = normalize(usersQ.trim());
+    return users.filter((u) => {
+      if (filterRole && u.role !== filterRole) return false;
+      if (filterAgence && u.agence_id !== filterAgence) return false;
+      if (nq) {
+        const hay = normalize(
+          [u.email, u.nom ?? "", u.prenom ?? ""].join(" ")
+        );
+        if (!hay.includes(nq)) return false;
+      }
+      return true;
+    });
+  }, [users, usersQ, filterRole, filterAgence]);
+
+  // === Compteurs par rôle ===
+  const roleCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    users.forEach((u) => (c[u.role] = (c[u.role] || 0) + 1));
+    return c;
+  }, [users]);
+
+  // === Mutations ===
   async function patchUser(
     id: string,
     patch: Partial<Pick<UserRow, "role" | "agence_id" | "manager_id">>
@@ -71,191 +136,593 @@ export function UsersClient({
     });
     if (!res.ok) {
       toast.error((await res.json()).error ?? "Erreur");
-      return;
+      return false;
     }
     toast.success("Utilisateur mis à jour");
     router.refresh();
+    return true;
   }
 
-  async function createAgence() {
-    if (!newAgence.trim()) {
+  async function patchAgence(
+    id: string,
+    patch: Partial<Pick<AgenceRow, "nom" | "ville" | "code">>
+  ) {
+    const res = await fetch(`/api/admin/agences/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Erreur");
+      return false;
+    }
+    setAgences(
+      agences.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              ...patch,
+              ...(patch.code !== undefined
+                ? {
+                    code: patch.code?.trim()
+                      ? patch.code.trim().toUpperCase()
+                      : null,
+                  }
+                : {}),
+            }
+          : a
+      )
+    );
+    toast.success("Agence mise à jour");
+    return true;
+  }
+
+  async function deleteAgence(id: string, nom: string) {
+    if (
+      !confirm(
+        `Supprimer l'agence "${nom}" ? Les utilisateurs assignés à cette agence seront détachés (mais pas supprimés).`
+      )
+    )
+      return false;
+    const res = await fetch(`/api/admin/agences/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Erreur");
+      return false;
+    }
+    setAgences(agences.filter((a) => a.id !== id));
+    toast.success("Agence supprimée");
+    router.refresh();
+    return true;
+  }
+
+  async function createAgence(nom: string, code: string, ville: string) {
+    if (!nom.trim()) {
       toast.error("Nom d'agence requis");
-      return;
+      return null;
     }
-    setCreating(true);
-    try {
-      const code = newAgenceCode.trim().toUpperCase() || null;
-      const res = await fetch("/api/admin/agences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nom: newAgence.trim(),
-          ville: newAgenceVille.trim() || null,
-          code,
-        }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      const { agence_id } = await res.json();
-      setAgences([
-        ...agences,
-        { id: agence_id, nom: newAgence.trim(), ville: newAgenceVille.trim() || null, code },
-      ]);
-      setNewAgence("");
-      setNewAgenceVille("");
-      setNewAgenceCode("");
-      toast.success("Agence créée");
-      router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setCreating(false);
+    const finalCode = code.trim().toUpperCase() || null;
+    const res = await fetch("/api/admin/agences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nom: nom.trim(),
+        ville: ville.trim() || null,
+        code: finalCode,
+      }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Erreur");
+      return null;
     }
+    const { agence_id } = await res.json();
+    const newOne: AgenceRow = {
+      id: agence_id,
+      nom: nom.trim(),
+      ville: ville.trim() || null,
+      code: finalCode,
+    };
+    setAgences([...agences, newOne]);
+    toast.success("Agence créée");
+    router.refresh();
+    return newOne;
   }
 
-  const selectCls = "bg-background border rounded px-2 py-1 text-sm";
+  const tabCls = (active: boolean) =>
+    `flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-md border text-sm font-medium transition ${
+      active
+        ? "bg-primary text-primary-foreground border-primary"
+        : "bg-background hover:bg-muted"
+    }`;
 
   return (
-    <main className="container max-w-3xl mx-auto p-4 space-y-4 pb-20">
+    <main className="container max-w-4xl mx-auto p-4 space-y-4 pb-20">
       <div className="flex items-center justify-between">
         <Link href="/admin">
           <Button variant="ghost" size="sm">← Supervision</Button>
         </Link>
-        <h1 className="text-lg font-semibold">Utilisateurs & agences</h1>
-        <div className="w-24" />
+        <h1 className="text-lg font-semibold">Utilisateurs &amp; agences</h1>
+        <div className="w-28" />
       </div>
 
-      {/* Agences */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Agences ({agences.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {agences.map((a) => (
-              <span
-                key={a.id}
-                className="text-xs px-2 py-1 rounded border bg-muted"
-              >
-                {a.code && (
-                  <strong className="text-primary mr-1">{a.code}</strong>
-                )}
-                {a.nom}
-                {a.ville ? ` · ${a.ville}` : ""}
-              </span>
-            ))}
-            {agences.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Aucune agence. Crée la première ci-dessous.
+      {/* Onglets */}
+      <div className="flex gap-2">
+        <button onClick={() => setTab("agences")} className={tabCls(tab === "agences")}>
+          <Building2 className="size-4" />
+          Agences ({agences.length})
+        </button>
+        <button onClick={() => setTab("users")} className={tabCls(tab === "users")}>
+          <Users className="size-4" />
+          Utilisateurs ({users.length})
+        </button>
+      </div>
+
+      {tab === "agences" ? (
+        <>
+          {/* Barre recherche + bouton nouvelle agence */}
+          <Card>
+            <CardContent className="p-3 flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={agencesQ}
+                  onChange={(e) => setAgencesQ(e.target.value)}
+                  placeholder="Rechercher une agence (nom, code, ville)…"
+                  className="pl-9"
+                />
+              </div>
+              <Button onClick={() => setNewAgenceOpen(true)}>
+                <Plus className="size-4 mr-1" />
+                Nouvelle agence
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Grille d'agences */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {filteredAgences.length === 0 && (
+              <p className="col-span-full text-sm text-muted-foreground text-center py-8">
+                Aucune agence ne correspond.
               </p>
             )}
+            {filteredAgences
+              .slice()
+              .sort((a, b) => a.nom.localeCompare(b.nom))
+              .map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => setEditingAgence(a)}
+                  className="text-left border rounded-lg p-3 bg-card hover:bg-muted/50 hover:border-primary/50 transition group"
+                >
+                  <div className="flex items-baseline gap-2">
+                    {a.code && (
+                      <span className="text-lg font-bold text-primary tabular-nums">
+                        {a.code}
+                      </span>
+                    )}
+                    <span className="text-sm font-medium truncate group-hover:underline">
+                      {a.nom}
+                    </span>
+                  </div>
+                  {a.ville && a.ville !== a.nom && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      📍 {a.ville}
+                    </p>
+                  )}
+                </button>
+              ))}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
+        </>
+      ) : (
+        <>
+          {/* Stats compteurs par rôle */}
+          <Card>
+            <CardContent className="p-3 flex flex-wrap gap-2">
+              {ROLES.filter((r) => roleCounts[r]).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setFilterRole(filterRole === r ? "" : r)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition ${
+                    filterRole === r
+                      ? ROLE_COLOR[r]
+                      : "bg-background hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {ROLE_LABEL[r]} · {roleCounts[r]}
+                </button>
+              ))}
+              {(filterRole || filterAgence) && (
+                <button
+                  onClick={() => {
+                    setFilterRole("");
+                    setFilterAgence("");
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full border bg-background hover:bg-muted text-muted-foreground"
+                >
+                  ✕ Réinitialiser filtres
+                </button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recherche + filtre agence */}
+          <Card>
+            <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="relative sm:col-span-2">
+                <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={usersQ}
+                  onChange={(e) => setUsersQ(e.target.value)}
+                  placeholder="Rechercher (nom, prénom, email)…"
+                  className="pl-9"
+                />
+              </div>
+              <select
+                className="bg-background border rounded px-3 py-2 text-sm"
+                value={filterAgence}
+                onChange={(e) => setFilterAgence(e.target.value)}
+              >
+                <option value="">Toutes les agences</option>
+                {agences.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code ? `${a.code} · ` : ""}
+                    {a.nom}
+                  </option>
+                ))}
+              </select>
+            </CardContent>
+          </Card>
+
+          {/* Liste users compacte */}
+          <div className="space-y-1.5">
+            {filteredUsers.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Aucun utilisateur ne correspond.
+              </p>
+            )}
+            {filteredUsers.map((u) => {
+              const ag = u.agence_id ? agenceById.get(u.agence_id) : null;
+              const manager = u.manager_id
+                ? users.find((m) => m.id === u.manager_id)
+                : null;
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => setEditingUser(u)}
+                  className="w-full text-left border rounded-lg p-3 bg-card hover:bg-muted/50 hover:border-primary/50 transition flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{userLabel(u)}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {u.email}
+                      {manager ? ` · N+1 : ${userLabel(manager)}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="outline" className={`text-xs ${ROLE_COLOR[u.role]}`}>
+                      {ROLE_LABEL[u.role]}
+                    </Badge>
+                    {ag ? (
+                      <Badge variant="outline" className="text-xs">
+                        {ag.code ?? ag.nom}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">
+                        sans agence
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* === Modal édition agence === */}
+      {editingAgence && (
+        <EditAgenceDialog
+          agence={editingAgence}
+          onClose={() => setEditingAgence(null)}
+          onSave={async (patch) => {
+            const ok = await patchAgence(editingAgence.id, patch);
+            if (ok) setEditingAgence(null);
+          }}
+          onDelete={async () => {
+            const ok = await deleteAgence(editingAgence.id, editingAgence.nom);
+            if (ok) setEditingAgence(null);
+          }}
+        />
+      )}
+
+      {/* === Modal nouvelle agence === */}
+      {newAgenceOpen && (
+        <NewAgenceDialog
+          onClose={() => setNewAgenceOpen(false)}
+          onCreate={async (nom, code, ville) => {
+            const r = await createAgence(nom, code, ville);
+            if (r) setNewAgenceOpen(false);
+          }}
+        />
+      )}
+
+      {/* === Modal édition utilisateur === */}
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          agences={agences}
+          allUsers={users}
+          onClose={() => setEditingUser(null)}
+          onSave={async (patch) => {
+            const ok = await patchUser(editingUser.id, patch);
+            if (ok) setEditingUser(null);
+          }}
+        />
+      )}
+    </main>
+  );
+}
+
+// ============================================================================
+// Dialog : édition d'une agence existante
+// ============================================================================
+function EditAgenceDialog({
+  agence,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  agence: AgenceRow;
+  onClose: () => void;
+  onSave: (patch: { nom: string; code: string | null; ville: string | null }) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [nom, setNom] = useState(agence.nom);
+  const [code, setCode] = useState(agence.code ?? "");
+  const [ville, setVille] = useState(agence.ville ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave({
+      nom: nom.trim(),
+      code: code.trim() || null,
+      ville: ville.trim() || null,
+    });
+    setSaving(false);
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Modifier l&apos;agence</DialogTitle>
+          <DialogDescription>
+            {agence.code && (
+              <span className="font-mono font-bold text-primary mr-2">
+                {agence.code}
+              </span>
+            )}
+            {agence.nom}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs">Nom</Label>
+              <Input value={nom} onChange={(e) => setNom(e.target.value)} />
+            </div>
             <div className="space-y-1">
-              <Label className="text-xs">Nom de l&apos;agence</Label>
+              <Label className="text-xs">Code</Label>
               <Input
-                value={newAgence}
-                onChange={(e) => setNewAgence(e.target.value)}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                maxLength={10}
+                className="uppercase"
+                placeholder="MN"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Ville</Label>
+            <Input value={ville} onChange={(e) => setVille(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter className="flex-row gap-2 sm:justify-between">
+          <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive">
+            <Trash2 className="size-3.5 mr-1" />
+            Supprimer
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !nom.trim()}>
+              <Save className="size-3.5 mr-1" />
+              {saving ? "..." : "Enregistrer"}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Dialog : création d'une nouvelle agence
+// ============================================================================
+function NewAgenceDialog({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (nom: string, code: string, ville: string) => Promise<void>;
+}) {
+  const [nom, setNom] = useState("");
+  const [code, setCode] = useState("");
+  const [ville, setVille] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  async function handleCreate() {
+    setCreating(true);
+    await onCreate(nom, code, ville);
+    setCreating(false);
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nouvelle agence</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs">Nom *</Label>
+              <Input
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
                 placeholder="ex: Le Mans"
+                autoFocus
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Code</Label>
               <Input
-                value={newAgenceCode}
-                onChange={(e) => setNewAgenceCode(e.target.value)}
-                placeholder="ex: MN"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
                 maxLength={10}
                 className="uppercase"
+                placeholder="MN"
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Ville (optionnel)</Label>
-              <Input
-                value={newAgenceVille}
-                onChange={(e) => setNewAgenceVille(e.target.value)}
-                placeholder="Le Mans"
-              />
-            </div>
-            <Button onClick={createAgence} disabled={creating}>
-              <Plus className="size-3.5 mr-1" /> Créer
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1">
+            <Label className="text-xs">Ville (optionnel)</Label>
+            <Input
+              value={ville}
+              onChange={(e) => setVille(e.target.value)}
+              placeholder="Le Mans"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={creating}>
+            Annuler
+          </Button>
+          <Button onClick={handleCreate} disabled={creating || !nom.trim()}>
+            <Plus className="size-3.5 mr-1" />
+            {creating ? "..." : "Créer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-      {/* Utilisateurs */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Utilisateurs ({initialUsers.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {initialUsers.map((u) => (
-            <div
-              key={u.id}
-              className="border rounded p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between"
+// ============================================================================
+// Dialog : édition d'un utilisateur
+// ============================================================================
+function EditUserDialog({
+  user,
+  agences,
+  allUsers,
+  onClose,
+  onSave,
+}: {
+  user: UserRow;
+  agences: AgenceRow[];
+  allUsers: UserRow[];
+  onClose: () => void;
+  onSave: (
+    patch: Partial<Pick<UserRow, "role" | "agence_id" | "manager_id">>
+  ) => Promise<void>;
+}) {
+  const [role, setRole] = useState(user.role);
+  const [agenceId, setAgenceId] = useState(user.agence_id ?? "");
+  const [managerId, setManagerId] = useState(user.manager_id ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave({
+      role,
+      agence_id: agenceId || null,
+      manager_id: managerId || null,
+    });
+    setSaving(false);
+  }
+
+  const selectCls = "w-full bg-background border rounded px-3 py-2 text-sm";
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{userLabel(user)}</DialogTitle>
+          <DialogDescription>{user.email}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Rôle</Label>
+            <select
+              className={selectCls}
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRow["role"])}
             >
-              <div className="min-w-0">
-                <p className="font-medium truncate">
-                  {u.prenom && u.nom ? `${u.prenom} ${u.nom}` : u.email}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <div className="space-y-0.5">
-                  <Label className="text-[10px] text-muted-foreground">Rôle</Label>
-                  <select
-                    className={selectCls}
-                    defaultValue={u.role}
-                    onChange={(e) =>
-                      patchUser(u.id, { role: e.target.value as UserRow["role"] })
-                    }
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>{ROLE_LABEL[r]}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[10px] text-muted-foreground">Agence</Label>
-                  <select
-                    className={selectCls}
-                    defaultValue={u.agence_id ?? ""}
-                    onChange={(e) =>
-                      patchUser(u.id, { agence_id: e.target.value || null })
-                    }
-                  >
-                    <option value="">— Aucune —</option>
-                    {agences.map((a) => (
-                      <option key={a.id} value={a.id}>{a.nom}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[10px] text-muted-foreground">
-                    Manager (N+1)
-                  </Label>
-                  <select
-                    className={selectCls}
-                    defaultValue={u.manager_id ?? ""}
-                    onChange={(e) =>
-                      patchUser(u.id, { manager_id: e.target.value || null })
-                    }
-                  >
-                    <option value="">— Aucun —</option>
-                    {initialUsers
-                      .filter((m) => m.id !== u.id)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {userLabel(m)} ({ROLE_LABEL[m.role]})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </main>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Agence</Label>
+            <select
+              className={selectCls}
+              value={agenceId}
+              onChange={(e) => setAgenceId(e.target.value)}
+            >
+              <option value="">— Aucune —</option>
+              {agences
+                .slice()
+                .sort((a, b) => a.nom.localeCompare(b.nom))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code ? `${a.code} · ` : ""}
+                    {a.nom}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Manager (N+1)</Label>
+            <select
+              className={selectCls}
+              value={managerId}
+              onChange={(e) => setManagerId(e.target.value)}
+            >
+              <option value="">— Aucun —</option>
+              {allUsers
+                .filter((m) => m.id !== user.id)
+                .slice()
+                .sort((a, b) => userLabel(a).localeCompare(userLabel(b)))
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {userLabel(m)} · {ROLE_LABEL[m.role]}
+                  </option>
+                ))}
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            <Save className="size-3.5 mr-1" />
+            {saving ? "..." : "Enregistrer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
