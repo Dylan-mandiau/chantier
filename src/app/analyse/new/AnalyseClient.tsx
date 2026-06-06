@@ -37,6 +37,7 @@ interface DuplicateInfo {
   created_at: string;
   can_open: boolean;
   same_agence: boolean;
+  photo_url: string | null;
 }
 
 export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
@@ -55,6 +56,8 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
   const [duplicate, setDuplicate] = useState<DuplicateInfo | null>(null);
   // L'utilisateur a vu l'alerte doublon et choisi de créer quand même.
   const [forceCreate, setForceCreate] = useState(false);
+  // Import inter-agence en cours.
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +150,35 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
       ...data,
       intervenants: data.intervenants.filter((_, i) => i !== idx),
     });
+  }
+
+  // Import inter-agence : crée une fiche dans mon agence à partir de la source.
+  async function handleImport() {
+    if (!duplicate) return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/chantiers/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_chantier_id: duplicate.id,
+          photo_path: photoPath,
+          lat,
+          lng,
+          notes: notes.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error ?? "Échec de l'import");
+      }
+      const { chantier_id } = await res.json();
+      toast.success("Données importées dans ton agence");
+      router.push(`/chantiers/${chantier_id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur inconnue");
+      setImporting(false);
+    }
   }
 
   // force=true : créer quand même malgré le doublon détecté.
@@ -410,44 +442,79 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                   </>
                 ) : (
                   <>
-                    Un chantier identique a déjà été scanné par{" "}
+                    Un chantier identique a été scanné par{" "}
                     <strong>{duplicate.owner_name}</strong> (autre agence) le{" "}
                     {new Date(duplicate.created_at).toLocaleDateString("fr-FR")}.
+                    Compare la photo ci-dessous : si c&apos;est le même chantier,
+                    importe ses données (intervenants, contacts) dans ton agence
+                    au lieu de tout re-saisir.
                   </>
                 )}
               </DialogDescription>
             </DialogHeader>
 
             <p className="text-sm font-medium">« {duplicate.titre} »</p>
-            {!duplicate.same_agence && (
-              <p className="text-xs text-muted-foreground">
-                La récupération automatique des données entre agences arrivera
-                bientôt. Pour l&apos;instant tu peux créer ta propre fiche.
-              </p>
+
+            {/* Compare-image : la photo de la fiche existante (autre agence) */}
+            {!duplicate.same_agence && duplicate.photo_url && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Photo enregistrée (à comparer avec la tienne) :
+                </p>
+                <Image
+                  src={duplicate.photo_url}
+                  alt="Panneau déjà enregistré (autre agence)"
+                  width={800}
+                  height={600}
+                  className="rounded-md w-full h-auto max-h-64 object-contain border bg-muted"
+                />
+              </div>
             )}
 
             <DialogFooter className="flex-col sm:flex-row gap-2">
-              {duplicate.can_open && (
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(`/chantiers/${duplicate.id}`)}
-                >
-                  {duplicate.same_agence
-                    ? "Ouvrir la fiche commune"
-                    : "Ouvrir la fiche existante"}
-                </Button>
+              {duplicate.same_agence ? (
+                <>
+                  {duplicate.can_open && (
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/chantiers/${duplicate.id}`)}
+                    >
+                      Ouvrir la fiche commune
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      // Mémorise le choix : l'utilisateur peut éditer puis
+                      // "Enregistrer" sans être ré-alerté.
+                      setForceCreate(true);
+                      setDuplicate(null);
+                    }}
+                  >
+                    Créer quand même
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleImport}
+                    disabled={importing}
+                  >
+                    {importing ? "Import…" : "Oui — importer les données"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={importing}
+                    onClick={() => {
+                      setForceCreate(true);
+                      setDuplicate(null);
+                    }}
+                  >
+                    Non, c&apos;est un autre → créer
+                  </Button>
+                </>
               )}
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  // On mémorise le choix et on ferme : l'utilisateur peut
-                  // éditer puis "Enregistrer" sans être ré-alerté.
-                  setForceCreate(true);
-                  setDuplicate(null);
-                }}
-              >
-                Créer quand même
-              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -13,6 +13,8 @@ export interface ChantierDuplicate {
   created_at: string;
   can_open: boolean;
   same_agence: boolean;
+  /** URL signée de la photo de la fiche existante (pour comparaison visuelle). */
+  photo_url: string | null;
 }
 
 /**
@@ -39,7 +41,7 @@ export async function detectChantierDuplicate(
 
   const { data: dups } = await admin
     .from("chantiers")
-    .select("id, titre, created_by, created_at, agence_id")
+    .select("id, titre, created_by, created_at, agence_id, photo_principale_url")
     .eq("dedup_key", dedupKey)
     .order("created_at", { ascending: true });
   if (!dups || dups.length === 0) return null;
@@ -60,6 +62,15 @@ export async function detectChantierDuplicate(
       ? `${owner.prenom} ${owner.nom}`
       : owner?.email ?? "un autre commercial";
 
+  // Photo signée de la fiche existante (sert au compare-image inter-agence).
+  let photoUrl: string | null = null;
+  if (target.photo_principale_url) {
+    const { data: signed } = await admin.storage
+      .from("chantier-photos")
+      .createSignedUrl(target.photo_principale_url, 1800);
+    photoUrl = signed?.signedUrl ?? null;
+  }
+
   return {
     id: target.id,
     titre: target.titre,
@@ -69,5 +80,6 @@ export async function detectChantierDuplicate(
     can_open:
       target.created_by === opts.userId ||
       (target.agence_id !== null && target.agence_id === opts.agenceId),
+    photo_url: photoUrl,
   };
 }
