@@ -30,7 +30,13 @@ export function chantierDedupKey(p: {
   adresse: string | null;
   code_postal: string | null;
 }): string | null {
-  const permis = norm(p.permis_construire).replace(/\s+/g, "");
+  // Cœur du permis : on garde l'alphanumérique et on retire le PRÉFIXE de
+  // lettres ("PC", "PC N°", "N°"…) pour que "PC N° 72181 24 Z0078" et
+  // "72181 24 Z0078" produisent la même clé. (Un n° de permis commence par
+  // les chiffres du département/commune.)
+  const permis = norm(p.permis_construire)
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/^[a-z]+/, "");
   if (permis.length >= 3) return `pc:${permis}`;
 
   const titre = norm(p.titre);
