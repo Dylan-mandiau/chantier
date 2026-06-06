@@ -10,6 +10,9 @@ const RequestSchema = z.object({
   lng: z.number().nullable(),
   notes: z.string().nullable(),
   analyzed: AnalyzedPanneauSchema,
+  // force=true : l'utilisateur a vu l'alerte "déjà scanné" et veut créer
+  // quand même un nouveau chantier (on saute la dédup).
+  force: z.boolean().optional().default(false),
 });
 
 export async function POST(request: Request) {
@@ -29,9 +32,63 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { photo_path, lat, lng, notes, analyzed } = parsed.data;
+  const { photo_path, lat, lng, notes, analyzed, force } = parsed.data;
 
   const admin = createAdminClient();
+
+  // Agence du créateur : sert au partage agence (RLS) et à savoir si un
+  // doublon trouvé est ouvrable par cet utilisateur.
+  const { data: me } = await admin
+    .from("profiles")
+    .select("agence_id")
+    .eq("id", user.id)
+    .single();
+  const agenceId = me?.agence_id ?? null;
+
+  // === Dédup par permis de construire ===
+  // Clé fiable (lue par l'analyse). SELECT indexé via service_role -> détecte
+  // aussi les chantiers scannés par d'autres commerciaux. Quelques ms, aucun
+  // appel API supplémentaire, aucun temps d'analyse en plus.
+  const permis = analyzed.projet.permis_construire?.trim() ?? "";
+  if (!force && permis.length >= 3) {
+    const { data: dup } = await admin
+      .from("chantiers")
+      .select("id, titre, created_by, created_at, agence_id")
+      .eq("permis_construire", permis)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (dup) {
+      const { data: owner } = await admin
+        .from("profiles")
+        .select("nom, prenom, email")
+        .eq("id", dup.created_by)
+        .single();
+      const ownerName =
+        owner?.prenom && owner?.nom
+          ? `${owner.prenom} ${owner.nom}`
+          : owner?.email ?? "un autre commercial";
+      // L'utilisateur peut-il ouvrir la fiche existante ? (propriétaire, ou
+      // même agence — la RLS lui en donnera l'accès en lecture.)
+      const canOpen =
+        dup.created_by === user.id ||
+        (dup.agence_id !== null && dup.agence_id === agenceId);
+
+      return NextResponse.json(
+        {
+          duplicate: {
+            id: dup.id,
+            titre: dup.titre,
+            owner_name: ownerName,
+            created_at: dup.created_at,
+            can_open: canOpen,
+          },
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   try {
     const { data: chantier, error: chantierErr } = await supabase
@@ -49,6 +106,7 @@ export async function POST(request: Request) {
         photo_principale_url: photo_path,
         notes,
         created_by: user.id,
+        agence_id: agenceId,
         ia_raw_json: analyzed as unknown as never,
       })
       .select("id")

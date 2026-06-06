@@ -9,6 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { ConfidenceBadge } from "@/components/confidence-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -19,6 +27,15 @@ interface Props {
   photoUrl: string;
   lat: number | null;
   lng: number | null;
+}
+
+// Info renvoyée par l'API quand un chantier au même permis existe déjà.
+interface DuplicateInfo {
+  id: string;
+  titre: string;
+  owner_name: string;
+  created_at: string;
+  can_open: boolean;
 }
 
 export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
@@ -33,6 +50,8 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Doublon détecté (même permis de construire) -> ouvre la boîte de dialogue.
+  const [duplicate, setDuplicate] = useState<DuplicateInfo | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +126,8 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
     });
   }
 
-  async function handleSave() {
+  // force=true : créer quand même malgré le doublon détecté.
+  async function handleSave(force = false) {
     if (!data) return;
     setSaving(true);
     try {
@@ -120,8 +140,20 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
           lng,
           notes: notes.trim() || null,
           analyzed: data,
+          force,
         }),
       });
+
+      // 409 + duplicate -> on montre la boîte "déjà scanné" au lieu d'enregistrer.
+      if (res.status === 409) {
+        const body = await res.json();
+        if (body.duplicate) {
+          setDuplicate(body.duplicate as DuplicateInfo);
+          setSaving(false);
+          return;
+        }
+      }
+
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.error ?? "Échec de la sauvegarde");
@@ -328,11 +360,55 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
 
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-3">
         <div className="container max-w-2xl mx-auto">
-          <Button onClick={handleSave} disabled={saving} className="w-full h-12 text-lg">
+          <Button onClick={() => handleSave()} disabled={saving} className="w-full h-12 text-lg">
             {saving ? "Enregistrement…" : "Enregistrer le chantier"}
           </Button>
         </div>
       </div>
+
+      {/* Boîte "déjà scanné" : même permis de construire détecté en base. */}
+      {duplicate && (
+        <Dialog open onOpenChange={(o) => !o && setDuplicate(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>⚠️ Panneau déjà scanné</DialogTitle>
+              <DialogDescription>
+                Un chantier avec le même permis de construire a déjà été scanné par{" "}
+                <strong>{duplicate.owner_name}</strong> le{" "}
+                {new Date(duplicate.created_at).toLocaleDateString("fr-FR")}.
+              </DialogDescription>
+            </DialogHeader>
+
+            <p className="text-sm font-medium">« {duplicate.titre} »</p>
+            {!duplicate.can_open && (
+              <p className="text-xs text-muted-foreground">
+                Cette fiche est gérée par une autre agence : tu ne peux pas l&apos;ouvrir,
+                mais tu peux tout de même créer ta propre fiche.
+              </p>
+            )}
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              {duplicate.can_open && (
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/chantiers/${duplicate.id}`)}
+                >
+                  Ouvrir la fiche existante
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDuplicate(null);
+                  handleSave(true);
+                }}
+              >
+                Créer quand même
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </main>
   );
 }
