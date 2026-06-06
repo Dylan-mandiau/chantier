@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
+import { chantierDedupKey } from "@/lib/dedup/chantier";
 import { z } from "zod";
 
 const RequestSchema = z.object({
@@ -45,44 +46,50 @@ export async function POST(request: Request) {
     .single();
   const agenceId = me?.agence_id ?? null;
 
-  // === Dédup par permis de construire ===
-  // Clé fiable (lue par l'analyse). SELECT indexé via service_role -> détecte
-  // aussi les chantiers scannés par d'autres commerciaux. Quelques ms, aucun
-  // appel API supplémentaire, aucun temps d'analyse en plus.
-  const permis = analyzed.projet.permis_construire?.trim() ?? "";
-  if (!force && permis.length >= 3) {
-    const { data: dup } = await admin
+  // === Déduplication ===
+  // Clé : permis de construire (forte) ou repli adresse+titre. SELECT indexé
+  // via service_role -> détecte aussi les chantiers d'autres commerciaux /
+  // d'autres agences. Quelques ms, aucun appel API en plus, 0 temps d'analyse.
+  // Priorité à un doublon DANS mon agence (cible de fusion collaborative).
+  const dedupKey = chantierDedupKey(analyzed.projet);
+  if (!force && dedupKey) {
+    const { data: dups } = await admin
       .from("chantiers")
       .select("id, titre, created_by, created_at, agence_id")
-      .eq("permis_construire", permis)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .eq("dedup_key", dedupKey)
+      .order("created_at", { ascending: true });
 
-    if (dup) {
+    if (dups && dups.length > 0) {
+      const sameAgenceDup =
+        agenceId !== null
+          ? dups.find((d) => d.agence_id === agenceId)
+          : undefined;
+      const target = sameAgenceDup ?? dups[0];
+
       const { data: owner } = await admin
         .from("profiles")
         .select("nom, prenom, email")
-        .eq("id", dup.created_by)
+        .eq("id", target.created_by)
         .single();
       const ownerName =
         owner?.prenom && owner?.nom
           ? `${owner.prenom} ${owner.nom}`
           : owner?.email ?? "un autre commercial";
-      // L'utilisateur peut-il ouvrir la fiche existante ? (propriétaire, ou
-      // même agence — la RLS lui en donnera l'accès en lecture.)
+
+      const sameAgence = !!sameAgenceDup;
       const canOpen =
-        dup.created_by === user.id ||
-        (dup.agence_id !== null && dup.agence_id === agenceId);
+        target.created_by === user.id ||
+        (target.agence_id !== null && target.agence_id === agenceId);
 
       return NextResponse.json(
         {
           duplicate: {
-            id: dup.id,
-            titre: dup.titre,
+            id: target.id,
+            titre: target.titre,
             owner_name: ownerName,
-            created_at: dup.created_at,
+            created_at: target.created_at,
             can_open: canOpen,
+            same_agence: sameAgence,
           },
         },
         { status: 409 }
@@ -107,6 +114,7 @@ export async function POST(request: Request) {
         notes,
         created_by: user.id,
         agence_id: agenceId,
+        dedup_key: dedupKey,
         ia_raw_json: analyzed as unknown as never,
       })
       .select("id")

@@ -17,13 +17,20 @@ export interface ChantierItem {
   photoUrl: string | null;
   nbIntervenants: number;
   createdAt: string;
+  author: string | null;
 }
 
 function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
-export function ChantiersListClient({ items }: { items: ChantierItem[] }) {
+export function ChantiersListClient({
+  items,
+  isAgence = false,
+}: {
+  items: ChantierItem[];
+  isAgence?: boolean;
+}) {
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("");
   const [tri, setTri] = useState<"recent" | "entreprises" | "titre">("recent");
@@ -62,7 +69,7 @@ export function ChantiersListClient({ items }: { items: ChantierItem[] }) {
   return (
     <main className="container max-w-3xl mx-auto p-4 pb-24 space-y-4">
       <h1 className="text-2xl font-bold">
-        Mes chantiers ({filtered.length}
+        {isAgence ? "Chantiers de mon agence" : "Mes chantiers"} ({filtered.length}
         {filtered.length !== items.length ? ` / ${items.length}` : ""})
       </h1>
 
@@ -134,6 +141,7 @@ export function ChantiersListClient({ items }: { items: ChantierItem[] }) {
                   photoUrl={c.photoUrl}
                   nbIntervenants={c.nbIntervenants}
                   createdAt={c.createdAt}
+                  author={c.author}
                 />
               ))}
             </div>

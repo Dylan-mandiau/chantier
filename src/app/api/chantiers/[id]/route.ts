@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
+import { chantierDedupKey } from "@/lib/dedup/chantier";
 import { z } from "zod";
 
 const PatchSchema = z.object({
@@ -67,6 +68,8 @@ export async function PATCH(
         permis_construire: analyzed.projet.permis_construire,
         date_pc: analyzed.projet.date_pc,
         montant_travaux_ht: analyzed.projet.montant_travaux_ht,
+        // Recalcule la clé de dédup si le permis/titre/adresse a changé.
+        dedup_key: chantierDedupKey(analyzed.projet),
         notes,
       })
       .eq("id", id);

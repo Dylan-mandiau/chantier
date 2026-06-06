@@ -10,6 +10,7 @@ interface Props {
   photoUrl: string | null;
   nbIntervenants: number;
   createdAt: string;
+  author?: string | null;
 }
 
 export function ChantierCard({
@@ -20,6 +21,7 @@ export function ChantierCard({
   photoUrl,
   nbIntervenants,
   createdAt,
+  author,
 }: Props) {
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(createdAt));
 
@@ -46,6 +48,9 @@ export function ChantierCard({
             <span>🏗 {nbIntervenants} entreprises</span>
             <span>{date}</span>
           </div>
+          {author && (
+            <p className="text-xs text-muted-foreground">👤 par {author}</p>
+          )}
         </CardContent>
       </Card>
     </Link>

@@ -139,6 +139,7 @@ export interface Database {
           notes: string | null;
           created_by: string;
           agence_id: string | null;
+          dedup_key: string | null;
           ia_raw_json: Json | null;
           created_at: string;
           updated_at: string;
@@ -159,6 +160,7 @@ export interface Database {
           notes?: string | null;
           created_by: string;
           agence_id?: string | null;
+          dedup_key?: string | null;
           ia_raw_json?: Json | null;
           created_at?: string;
           updated_at?: string;
@@ -179,6 +181,7 @@ export interface Database {
           notes?: string | null;
           created_by?: string;
           agence_id?: string | null;
+          dedup_key?: string | null;
           ia_raw_json?: Json | null;
           created_at?: string;
           updated_at?: string;

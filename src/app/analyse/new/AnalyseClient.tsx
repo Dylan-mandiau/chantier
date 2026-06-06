@@ -36,6 +36,7 @@ interface DuplicateInfo {
   owner_name: string;
   created_at: string;
   can_open: boolean;
+  same_agence: boolean;
 }
 
 export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
@@ -366,24 +367,40 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
         </div>
       </div>
 
-      {/* Boîte "déjà scanné" : même permis de construire détecté en base. */}
+      {/* Boîte "déjà scanné" : même panneau détecté en base (permis ou adresse+titre). */}
       {duplicate && (
         <Dialog open onOpenChange={(o) => !o && setDuplicate(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>⚠️ Panneau déjà scanné</DialogTitle>
+              <DialogTitle>
+                {duplicate.same_agence
+                  ? "✅ Déjà dans ton agence"
+                  : "⚠️ Panneau déjà connu (autre agence)"}
+              </DialogTitle>
               <DialogDescription>
-                Un chantier avec le même permis de construire a déjà été scanné par{" "}
-                <strong>{duplicate.owner_name}</strong> le{" "}
-                {new Date(duplicate.created_at).toLocaleDateString("fr-FR")}.
+                {duplicate.same_agence ? (
+                  <>
+                    Ce panneau a déjà été scanné dans ton agence par{" "}
+                    <strong>{duplicate.owner_name}</strong> le{" "}
+                    {new Date(duplicate.created_at).toLocaleDateString("fr-FR")}.
+                    Ouvre la fiche commune pour l&apos;enrichir plutôt que créer un
+                    doublon.
+                  </>
+                ) : (
+                  <>
+                    Un chantier identique a déjà été scanné par{" "}
+                    <strong>{duplicate.owner_name}</strong> (autre agence) le{" "}
+                    {new Date(duplicate.created_at).toLocaleDateString("fr-FR")}.
+                  </>
+                )}
               </DialogDescription>
             </DialogHeader>
 
             <p className="text-sm font-medium">« {duplicate.titre} »</p>
-            {!duplicate.can_open && (
+            {!duplicate.same_agence && (
               <p className="text-xs text-muted-foreground">
-                Cette fiche est gérée par une autre agence : tu ne peux pas l&apos;ouvrir,
-                mais tu peux tout de même créer ta propre fiche.
+                La récupération automatique des données entre agences arrivera
+                bientôt. Pour l&apos;instant tu peux créer ta propre fiche.
               </p>
             )}
 
@@ -393,7 +410,9 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                   variant="outline"
                   onClick={() => router.push(`/chantiers/${duplicate.id}`)}
                 >
-                  Ouvrir la fiche existante
+                  {duplicate.same_agence
+                    ? "Ouvrir la fiche commune"
+                    : "Ouvrir la fiche existante"}
                 </Button>
               )}
               <Button
