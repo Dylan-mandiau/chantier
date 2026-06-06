@@ -20,7 +20,11 @@ export async function Header() {
 
   const role = profile?.role ?? "";
   const isAdmin = role === "admin";
-  const isManager = role === "rc" || role === "chef_secteur" || isAdmin;
+  const isManager =
+    role === "rc" ||
+    role === "chef_secteur" ||
+    role === "directeur_commercial" ||
+    isAdmin;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">

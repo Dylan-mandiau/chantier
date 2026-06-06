@@ -41,7 +41,7 @@ export interface Database {
           email: string;
           nom: string | null;
           prenom: string | null;
-          role: "commercial" | "rc" | "chef_secteur" | "admin";
+          role: "commercial" | "rc" | "chef_secteur" | "directeur_commercial" | "admin";
           agence_id: string | null;
           manager_id: string | null;
           created_at: string;
@@ -51,7 +51,7 @@ export interface Database {
           email: string;
           nom?: string | null;
           prenom?: string | null;
-          role?: "commercial" | "rc" | "chef_secteur" | "admin";
+          role?: "commercial" | "rc" | "chef_secteur" | "directeur_commercial" | "admin";
           agence_id?: string | null;
           manager_id?: string | null;
           created_at?: string;
@@ -61,7 +61,7 @@ export interface Database {
           email?: string;
           nom?: string | null;
           prenom?: string | null;
-          role?: "commercial" | "rc" | "chef_secteur" | "admin";
+          role?: "commercial" | "rc" | "chef_secteur" | "directeur_commercial" | "admin";
           agence_id?: string | null;
           manager_id?: string | null;
           created_at?: string;

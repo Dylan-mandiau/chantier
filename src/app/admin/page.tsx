@@ -71,7 +71,8 @@ export default async function AdminDashboardPage({
     .eq("id", user.id)
     .single();
   const role = me?.role ?? "";
-  if (!["rc", "chef_secteur", "admin"].includes(role)) notFound();
+  if (!["rc", "chef_secteur", "directeur_commercial", "admin"].includes(role))
+    notFound();
   const isAdmin = role === "admin";
 
   // Données via service_role (bypass RLS), filtrées ensuite au périmètre visible

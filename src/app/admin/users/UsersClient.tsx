@@ -15,7 +15,7 @@ export interface UserRow {
   email: string;
   nom: string | null;
   prenom: string | null;
-  role: "commercial" | "rc" | "chef_secteur" | "admin";
+  role: "commercial" | "rc" | "chef_secteur" | "directeur_commercial" | "admin";
   agence_id: string | null;
   manager_id: string | null;
 }
@@ -30,11 +30,18 @@ export interface AgenceRow {
   ville: string | null;
 }
 
-const ROLES: UserRow["role"][] = ["commercial", "rc", "chef_secteur", "admin"];
+const ROLES: UserRow["role"][] = [
+  "commercial",
+  "rc",
+  "chef_secteur",
+  "directeur_commercial",
+  "admin",
+];
 const ROLE_LABEL: Record<UserRow["role"], string> = {
   commercial: "Commercial",
   rc: "Resp. commercial",
   chef_secteur: "Chef de secteur",
+  directeur_commercial: "Directeur commercial",
   admin: "Admin",
 };
 

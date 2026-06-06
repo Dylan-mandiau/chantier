@@ -8,7 +8,9 @@ import { z } from "zod";
 type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
 
 const PatchSchema = z.object({
-  role: z.enum(["commercial", "rc", "chef_secteur", "admin"]).optional(),
+  role: z
+    .enum(["commercial", "rc", "chef_secteur", "directeur_commercial", "admin"])
+    .optional(),
   agence_id: z.string().uuid().nullable().optional(),
   manager_id: z.string().uuid().nullable().optional(),
 });
