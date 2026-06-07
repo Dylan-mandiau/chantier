@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,9 +27,11 @@ function normalize(s: string): string {
 export function ChantiersListClient({
   items,
   isAgence = false,
+  header,
 }: {
   items: ChantierItem[];
   isAgence?: boolean;
+  header?: ReactNode;
 }) {
   const [q, setQ] = useState("");
   const [dept, setDept] = useState("");
@@ -68,6 +70,7 @@ export function ChantiersListClient({
 
   return (
     <main className="container max-w-6xl mx-auto p-4 pb-24 space-y-4">
+      {header}
       <h1 className="text-2xl font-bold">
         {isAgence ? "Chantiers de mon agence" : "Mes chantiers"} ({filtered.length}
         {filtered.length !== items.length ? ` / ${items.length}` : ""})

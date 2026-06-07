@@ -4,6 +4,7 @@ import {
   ChantiersListClient,
   type ChantierItem,
 } from "./ChantiersListClient";
+import { ProgressDashboard } from "@/components/progress-dashboard";
 
 type ChantierListItem = {
   id: string;
@@ -27,7 +28,7 @@ export default async function HomePage() {
   // (collaboratif). Sans agence -> repli sur ses propres chantiers.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("agence_id")
+    .select("agence_id, prenom")
     .eq("id", user.id)
     .single();
   const agenceId = profile?.agence_id ?? null;
@@ -86,5 +87,67 @@ export default async function HomePage() {
     })
   );
 
-  return <ChantiersListClient items={items} isAgence={agenceId !== null} />;
+  // Stats de progression personnelle (#47) — compteurs "ma semaine".
+  // contacts.created_by / created_at : table créée par la migration 011 ; si
+  // absente, les comptes retombent à 0 sans casser la page.
+  const now = new Date();
+  const todayISO = now.toISOString().slice(0, 10);
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - ((now.getUTCDay() + 6) % 7));
+  const weekStartISO = monday.toISOString().slice(0, 10);
+
+  const [
+    scansTotalRes,
+    scansWeekRes,
+    contactsTotalRes,
+    contactsWeekRes,
+    relancesAFaireRes,
+    relancesEnRetardRes,
+  ] = await Promise.all([
+    supabase
+      .from("chantiers")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", user.id),
+    supabase
+      .from("chantiers")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", user.id)
+      .gte("created_at", weekStartISO),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", user.id),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", user.id)
+      .gte("created_at", weekStartISO),
+    supabase
+      .from("relances")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "planifiee"),
+    supabase
+      .from("relances")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "planifiee")
+      .lt("date_relance", todayISO),
+  ]);
+
+  const stats = {
+    prenom: profile?.prenom ?? null,
+    scansTotal: scansTotalRes.count ?? 0,
+    scansWeek: scansWeekRes.count ?? 0,
+    contactsTotal: contactsTotalRes.count ?? 0,
+    contactsWeek: contactsWeekRes.count ?? 0,
+    relancesAFaire: relancesAFaireRes.count ?? 0,
+    relancesEnRetard: relancesEnRetardRes.count ?? 0,
+  };
+
+  return (
+    <ChantiersListClient
+      items={items}
+      isAgence={agenceId !== null}
+      header={<ProgressDashboard {...stats} />}
+    />
+  );
 }
