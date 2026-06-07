@@ -4,6 +4,7 @@ import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
 import { chantierDedupKey, chantierAdresseKey } from "@/lib/dedup/chantier";
 import { detectChantierDuplicate } from "@/lib/dedup/chantier-detect";
+import { writeChantierAudit } from "@/lib/audit/chantier";
 import { z } from "zod";
 
 const RequestSchema = z.object({
@@ -115,6 +116,16 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Traçabilité : création (scan).
+    await writeChantierAudit(admin, {
+      chantierId: chantier.id,
+      panneauId,
+      agenceId,
+      modifiePar: user.id,
+      titre: analyzed.projet.titre,
+      action: "creation",
+    });
 
     for (let i = 0; i < analyzed.intervenants.length; i++) {
       const it = analyzed.intervenants[i];

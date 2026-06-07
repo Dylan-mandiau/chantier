@@ -302,6 +302,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      chantier_modifications: {
+        Row: {
+          id: string;
+          chantier_id: string | null;
+          panneau_id: string | null;
+          agence_id: string | null;
+          modifie_par: string | null;
+          chantier_titre: string | null;
+          action: string;
+          changements: Json;
+          modifie_at: string;
+        };
+        Insert: {
+          id?: string;
+          chantier_id?: string | null;
+          panneau_id?: string | null;
+          agence_id?: string | null;
+          modifie_par?: string | null;
+          chantier_titre?: string | null;
+          action: string;
+          changements?: Json;
+          modifie_at?: string;
+        };
+        Update: {
+          id?: string;
+          chantier_id?: string | null;
+          panneau_id?: string | null;
+          agence_id?: string | null;
+          modifie_par?: string | null;
+          chantier_titre?: string | null;
+          action?: string;
+          changements?: Json;
+          modifie_at?: string;
+        };
+        Relationships: [];
+      };
       chantier_intervenants: {
         Row: {
           id: string;

@@ -5,6 +5,7 @@
 // vers les mêmes entreprises GLOBALES) ; on lie au même panneau (panneau_id).
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { writeChantierAudit } from "@/lib/audit/chantier";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -95,6 +96,16 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+
+  // Traçabilité : import inter-agence (qui a importé ce panneau dans son agence).
+  await writeChantierAudit(admin, {
+    chantierId: created.id,
+    panneauId: src.panneau_id,
+    agenceId,
+    modifiePar: user.id,
+    titre: src.titre,
+    action: "import",
+  });
 
   // Copie des intervenants (service role) : mêmes entreprises globales.
   const { data: srcInts } = await admin

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DeleteChantierButton } from "@/components/delete-chantier-button";
@@ -10,6 +10,10 @@ import {
   IntervenantsList,
   type IntervenantItem,
 } from "@/components/intervenants-list";
+import {
+  ChantierHistory,
+  type ChantierAuditItem,
+} from "@/components/chantier-history";
 import {
   computeStatutCommercial,
   type StatutInputs,
@@ -77,7 +81,7 @@ export default async function ChantierDetailPage({
       ? entrepriseIds
       : ["00000000-0000-0000-0000-000000000000"];
 
-  const [contactsRes, relancesRes, entreprisesRes, profileRes] =
+  const [contactsRes, relancesRes, entreprisesRes, profileRes, auditRes] =
     await Promise.all([
       supabase
         .from("contacts_envoyes")
@@ -100,6 +104,13 @@ export default async function ChantierDetailPage({
         .select("nom, prenom, email")
         .eq("id", user.id)
         .single(),
+      // Traçabilité (#41 étendu) : modifications de CETTE fiche (RLS agence).
+      supabase
+        .from("chantier_modifications")
+        .select("id, action, changements, modifie_at, modifie_par")
+        .eq("chantier_id", id)
+        .order("modifie_at", { ascending: false })
+        .limit(50),
     ]);
 
   const codeClientByEnt = new Map<string, string | null>();
@@ -164,6 +175,33 @@ export default async function ChantierDetailPage({
         code_client_salti: codeClientByEnt.get(ent.id) ?? null,
       };
     });
+
+  // Historique : résolution des noms d'auteurs (profiles RLS self-only -> admin).
+  const auditRows = auditRes.data ?? [];
+  const auditAuthorIds = [
+    ...new Set(
+      auditRows.map((a) => a.modifie_par).filter((x): x is string => !!x)
+    ),
+  ];
+  const auditAuthors = new Map<string, string>();
+  if (auditAuthorIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: authors } = await admin
+      .from("profiles")
+      .select("id, prenom, nom, email")
+      .in("id", auditAuthorIds);
+    (authors ?? []).forEach((a) => {
+      const nom = [a.prenom, a.nom].filter(Boolean).join(" ").trim();
+      auditAuthors.set(a.id, nom || a.email || "Inconnu");
+    });
+  }
+  const chantierAudit: ChantierAuditItem[] = auditRows.map((a) => ({
+    id: a.id,
+    action: a.action,
+    changements: a.changements as ChantierAuditItem["changements"],
+    modifie_at: a.modifie_at,
+    auteur: a.modifie_par ? auditAuthors.get(a.modifie_par) ?? null : null,
+  }));
 
   return (
     <main className="container max-w-5xl mx-auto p-4 space-y-4 pb-24">
@@ -239,6 +277,9 @@ export default async function ChantierDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Traçabilité : qui a changé quoi (avant -> après) */}
+      <ChantierHistory audit={chantierAudit} />
     </main>
   );
 }

@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
 import { chantierDedupKey, chantierAdresseKey } from "@/lib/dedup/chantier";
+import { writeChantierAudit, diffChantier } from "@/lib/audit/chantier";
 import { z } from "zod";
 
 const PatchSchema = z.object({
@@ -43,10 +44,13 @@ export async function PATCH(
   }
   const { notes, analyzed } = parsed.data;
 
-  // Vérifier que le chantier existe ET appartient à l'utilisateur (RLS le ferait, mais explicite)
+  // Vérifier que le chantier existe ET appartient à l'utilisateur (RLS le ferait, mais explicite).
+  // On récupère aussi les valeurs AVANT pour la traçabilité (diff avant/après).
   const { data: existing } = await supabase
     .from("chantiers")
-    .select("id, created_by")
+    .select(
+      "id, created_by, titre, adresse, ville, code_postal, permis_construire, date_pc, montant_travaux_ht, notes, agence_id, panneau_id"
+    )
     .eq("id", id)
     .single();
 
@@ -78,6 +82,31 @@ export async function PATCH(
     if (updateErr) {
       console.error("[chantiers PATCH] update chantier:", updateErr);
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+
+    // Traçabilité : on enregistre les champs qui ont réellement changé
+    // (valeur avant -> après). On ne loggue rien si aucun champ scalaire n'a
+    // bougé (les intervenants sont remplacés en bloc et non diffés ici).
+    const changements = diffChantier(existing, {
+      titre: analyzed.projet.titre,
+      adresse: analyzed.projet.adresse,
+      ville: analyzed.projet.ville,
+      code_postal: analyzed.projet.code_postal,
+      permis_construire: analyzed.projet.permis_construire,
+      date_pc: analyzed.projet.date_pc,
+      montant_travaux_ht: analyzed.projet.montant_travaux_ht,
+      notes,
+    });
+    if (Object.keys(changements).length > 0) {
+      await writeChantierAudit(admin, {
+        chantierId: id,
+        panneauId: existing.panneau_id,
+        agenceId: existing.agence_id,
+        modifiePar: user.id,
+        titre: analyzed.projet.titre,
+        action: "modification",
+        changements,
+      });
     }
 
     // 2. Supprimer TOUS les intervenants existants pour ce chantier (admin pour passer RLS si délicat)
