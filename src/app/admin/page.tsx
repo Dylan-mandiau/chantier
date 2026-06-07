@@ -417,7 +417,14 @@ export default async function AdminDashboardPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Derniers chantiers scannés ({chantiers.length})</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle>Derniers chantiers scannés ({chantiers.length})</CardTitle>
+            {isAdmin && (
+              <Link href="/admin/doublons">
+                <Button variant="outline" size="sm">🧹 Doublons à fusionner</Button>
+              </Link>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <AdminChantiersList items={adminChantierItems} />

@@ -22,6 +22,7 @@ const FIELD_LABELS: Record<string, string> = {
   date_pc: "Date du permis",
   montant_travaux_ht: "Montant travaux HT",
   notes: "Notes",
+  fusion: "Fusion de doublon",
 };
 
 const ACTION_LABEL: Record<string, string> = {
