@@ -13,6 +13,7 @@ export interface KpiData {
   entreprises: { total: number; verifiees: number; avecCoords: number; clientsSalti: number };
   pipeline: { value: string; label: string; count: number }[];
   conversion: { gagne: number; totalSuivi: number; tauxPct: number | null };
+  funnel: { label: string; count: number }[];
   utilisation: {
     actifs: number;
     totalUtilisateurs: number;
@@ -114,6 +115,15 @@ export async function computeKpis(
     count: suiviCounts.get(s.value) ?? 0,
   }));
 
+  // Funnel de conversion (étapes cumulatives, décroissantes).
+  const c = (k: string) => suiviCounts.get(k) ?? 0;
+  const funnel = [
+    { label: "Suivis", count: totalSuivi },
+    { label: "Contactés", count: totalSuivi - c("a_contacter") },
+    { label: "Négociation", count: c("devis_envoye") + c("negociation") + c("gagne") },
+    { label: "Gagnés", count: c("gagne") },
+  ];
+
   // Scans de la période : par jour + classements.
   const periodRows = periodRes.data ?? [];
   const scansTotal = periodRows.length;
@@ -197,6 +207,7 @@ export async function computeKpis(
     },
     pipeline,
     conversion: { gagne, totalSuivi, tauxPct },
+    funnel,
     utilisation: {
       actifs,
       totalUtilisateurs: totalUsers,

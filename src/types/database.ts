@@ -383,6 +383,36 @@ export interface Database {
         };
         Relationships: [];
       };
+      kpi_objectifs: {
+        Row: {
+          id: boolean;
+          actif: boolean;
+          objectif_scans: number | null;
+          objectif_conversion_pct: number | null;
+          objectif_adoption_pct: number | null;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          actif?: boolean;
+          objectif_scans?: number | null;
+          objectif_conversion_pct?: number | null;
+          objectif_adoption_pct?: number | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: boolean;
+          actif?: boolean;
+          objectif_scans?: number | null;
+          objectif_conversion_pct?: number | null;
+          objectif_adoption_pct?: number | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       chantier_intervenants: {
         Row: {
           id: string;

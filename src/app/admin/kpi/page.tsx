@@ -31,7 +31,18 @@ export default async function KpiPage({
     : 30;
 
   const admin = createAdminClient();
-  const data = await computeKpis(admin, periode);
+  const [data, objectifsRes] = await Promise.all([
+    computeKpis(admin, periode),
+    admin.from("kpi_objectifs").select("*").eq("id", true).maybeSingle(),
+  ]);
+  const objectifs = objectifsRes.data
+    ? {
+        actif: objectifsRes.data.actif,
+        objectif_scans: objectifsRes.data.objectif_scans,
+        objectif_conversion_pct: objectifsRes.data.objectif_conversion_pct,
+        objectif_adoption_pct: objectifsRes.data.objectif_adoption_pct,
+      }
+    : null;
 
   return (
     <main className="container max-w-5xl mx-auto p-4 space-y-4 pb-20">
@@ -43,7 +54,7 @@ export default async function KpiPage({
         <div className="w-16" />
       </div>
 
-      <KpiDashboard data={data} periode={periode} />
+      <KpiDashboard data={data} periode={periode} objectifs={objectifs} />
     </main>
   );
 }
