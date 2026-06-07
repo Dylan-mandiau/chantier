@@ -65,15 +65,15 @@ export function IntervenantsList({
   );
 
   const tabCls = (key: Filter) =>
-    `text-xs px-3 py-1.5 rounded-full border transition ${
+    `shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
       filter === key
-        ? "bg-primary text-primary-foreground border-transparent font-semibold"
-        : "bg-background hover:bg-muted text-muted-foreground"
+        ? "bg-primary text-primary-foreground shadow-sm"
+        : "bg-muted text-foreground hover:bg-muted/70"
     }`;
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button className={tabCls("all")} onClick={() => setFilter("all")}>
           Tous · {counts.all}
         </button>
@@ -103,25 +103,23 @@ export function IntervenantsList({
                   </span>
                 )}
               </div>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap min-w-0">
-                  <Link
-                    href={`/entreprises/${it.entreprise_id}`}
-                    className="font-medium underline-offset-2 hover:underline"
-                    title="Ouvrir la fiche entreprise"
-                  >
-                    {it.raison_sociale}
-                  </Link>
-                  <StatutCommercialBadge statut={it.statut} />
-                  <VerifieToggle entrepriseId={it.entreprise_id} verifie={it.verifie} />
-                </div>
-                <Link
-                  href={`/entreprises/${it.entreprise_id}`}
-                  aria-label={`Ouvrir la fiche de ${it.raison_sociale}`}
-                  className="shrink-0 rounded-md px-1.5 text-lg leading-none text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
+              {/* Nom (tronqué) + chevron : toute la ligne ouvre la fiche entreprise */}
+              <Link
+                href={`/entreprises/${it.entreprise_id}`}
+                title="Ouvrir la fiche entreprise"
+                className="flex items-center justify-between gap-2 group min-w-0"
+              >
+                <span className="font-medium truncate group-hover:underline">
+                  {it.raison_sociale}
+                </span>
+                <span className="shrink-0 text-lg leading-none text-muted-foreground group-hover:text-foreground">
                   ›
-                </Link>
+                </span>
+              </Link>
+              {/* Badges sur leur propre ligne (évite tout débordement) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <StatutCommercialBadge statut={it.statut} />
+                <VerifieToggle entrepriseId={it.entreprise_id} verifie={it.verifie} />
               </div>
 
               <ContactActions

@@ -64,10 +64,10 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+      className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         active
-          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-          : "bg-background text-foreground border-border hover:bg-muted"
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "bg-muted text-foreground hover:bg-muted/70"
       }`}
     >
       {children}
@@ -174,8 +174,8 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
         />
       </div>
 
-      {/* Filtres statut en chips — wrap (passent à la ligne, plus de scroll latéral) */}
-      <div className="flex flex-wrap gap-2">
+      {/* Filtres statut en chips — barre de pills défilante (style iOS) */}
+      <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Chip active={statut === ""} onClick={() => setStatut("")}>
           Tous ({items.length})
         </Chip>
