@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HardHat, Building2, Bell, Users, Shield, Plus } from "lucide-react";
+import { HardHat, Building2, Bell, Users, Shield, Plus, ListChecks } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 /**
@@ -73,6 +73,7 @@ export function BottomNav({
           <span className="mt-0.5 text-[11px] text-muted-foreground">Scanner</span>
         </Link>
 
+        <Item href="/suivi" icon={ListChecks} label="Suivi" />
         <Item href="/relances" icon={Bell} label="Relances" />
         {isManager ? (
           <Item

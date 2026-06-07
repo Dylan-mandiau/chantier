@@ -16,6 +16,7 @@ import {
   Shield,
   Users,
   LogOut,
+  ListChecks,
 } from "lucide-react";
 
 /**
@@ -56,6 +57,9 @@ export function MobileNav({
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/entreprises" />} className="gap-3 px-3 py-3 text-base">
           <Building2 className="size-5" /> Entreprises
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/suivi" />} className="gap-3 px-3 py-3 text-base">
+          <ListChecks className="size-5" /> Mon suivi
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/relances" />} className="gap-3 px-3 py-3 text-base">
           <Bell className="size-5" /> Mes relances

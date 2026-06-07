@@ -103,16 +103,25 @@ export function IntervenantsList({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <Link
+                    href={`/entreprises/${it.entreprise_id}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                    title="Ouvrir la fiche entreprise"
+                  >
+                    {it.raison_sociale}
+                  </Link>
+                  <StatutCommercialBadge statut={it.statut} />
+                  <VerifieToggle entrepriseId={it.entreprise_id} verifie={it.verifie} />
+                </div>
                 <Link
                   href={`/entreprises/${it.entreprise_id}`}
-                  className="font-medium underline-offset-2 hover:underline"
-                  title="Ouvrir la fiche entreprise"
+                  aria-label={`Ouvrir la fiche de ${it.raison_sociale}`}
+                  className="shrink-0 rounded-md px-1.5 text-lg leading-none text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  {it.raison_sociale}
+                  ›
                 </Link>
-                <StatutCommercialBadge statut={it.statut} />
-                <VerifieToggle entrepriseId={it.entreprise_id} verifie={it.verifie} />
               </div>
 
               <ContactActions

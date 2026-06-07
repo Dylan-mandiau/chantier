@@ -62,7 +62,7 @@ export default async function EntreprisesPage() {
 
   // Statut commercial : contacts + relances sur ces entreprises
   const today = new Date().toISOString().slice(0, 10);
-  const [contactsRes, relancesRes] = await Promise.all([
+  const [contactsRes, relancesRes, suiviRes] = await Promise.all([
     supabase
       .from("contacts_envoyes")
       .select("entreprise_id, statut, envoye_at")
@@ -75,7 +75,19 @@ export default async function EntreprisesPage() {
       .eq("status", "planifiee")
       .gte("date_relance", today)
       .order("date_relance", { ascending: true }),
+    // Statuts de suivi manuel (#44) par entreprise, pour le filtre Suivi.
+    supabase
+      .from("intervenant_suivi")
+      .select("entreprise_id, statut")
+      .in("entreprise_id", safeIds),
   ]);
+
+  const suiviByEnt = new Map<string, Set<string>>();
+  (suiviRes.data ?? []).forEach((s) => {
+    const set = suiviByEnt.get(s.entreprise_id) ?? new Set<string>();
+    set.add(s.statut);
+    suiviByEnt.set(s.entreprise_id, set);
+  });
 
   const lastContact = new Map<string, NonNullable<StatutInputs["dernierContact"]>>();
   (contactsRes.data ?? []).forEach((c) => {
@@ -105,6 +117,7 @@ export default async function EntreprisesPage() {
       prochaineRelance: nextRelance.get(v.entreprise.id) ?? null,
       today,
     }),
+    suiviStatuts: [...(suiviByEnt.get(v.entreprise.id) ?? [])],
   }));
 
   return <EntreprisesListClient items={items} />;

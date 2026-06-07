@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ContactActions } from "@/components/contact-actions";
 import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
+import { SUIVI_STATUTS } from "@/lib/suivi/statuts";
 import type { StatutCommercial } from "@/lib/statut/compute";
 import { Search, X } from "lucide-react";
 
@@ -19,6 +20,8 @@ export interface EntrepriseItem {
   code_client_salti: string | null;
   nbChantiers: number;
   statut: StatutCommercial;
+  /** Statuts de suivi manuel (#44) présents sur les chantiers de cette entreprise. */
+  suiviStatuts: string[];
 }
 
 function normalize(s: string): string {
@@ -77,6 +80,7 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
   const [statut, setStatut] = useState(""); // "" = tous
   const [dept, setDept] = useState("");
   const [aCompleter, setACompleter] = useState(false);
+  const [suivi, setSuivi] = useState(""); // filtre par statut de suivi (#44)
   const [tri, setTri] = useState<"chantiers" | "nom">("chantiers");
 
   // Départements présents (2 premiers chiffres du code postal), triés
@@ -120,6 +124,7 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
       if (chip && !chip.match(it.statut)) return false;
       if (dept && (it.code_postal?.slice(0, 2) ?? "") !== dept) return false;
       if (aCompleter && it.telephone && it.email) return false;
+      if (suivi && !it.suiviStatuts.includes(suivi)) return false;
       return true;
     });
 
@@ -130,9 +135,10 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
           a.raison_sociale.localeCompare(b.raison_sociale)
     );
     return out;
-  }, [items, q, statut, dept, aCompleter, tri]);
+  }, [items, q, statut, dept, aCompleter, suivi, tri]);
 
-  const hasFilters = q !== "" || statut !== "" || dept !== "" || aCompleter;
+  const hasFilters =
+    q !== "" || statut !== "" || dept !== "" || aCompleter || suivi !== "";
   const selectCls =
     "bg-background border rounded-md px-2 py-1.5 text-xs text-foreground";
 
@@ -141,6 +147,7 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
     setStatut("");
     setDept("");
     setACompleter(false);
+    setSuivi("");
   }
 
   return (
@@ -167,8 +174,8 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
         />
       </div>
 
-      {/* Filtres statut en chips (scroll horizontal sur mobile) */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Filtres statut en chips — wrap (passent à la ligne, plus de scroll latéral) */}
+      <div className="flex flex-wrap gap-2">
         <Chip active={statut === ""} onClick={() => setStatut("")}>
           Tous ({items.length})
         </Chip>
@@ -188,8 +195,21 @@ export function EntreprisesListClient({ items }: { items: EntrepriseItem[] }) {
         )}
       </div>
 
-      {/* Département + tri + reset */}
+      {/* Suivi + Département + tri + reset */}
       <div className="flex flex-wrap items-center gap-2">
+        <select
+          className={selectCls}
+          value={suivi}
+          onChange={(e) => setSuivi(e.target.value)}
+          aria-label="Statut de suivi"
+        >
+          <option value="">🎯 Tous suivis</option>
+          {SUIVI_STATUTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.emoji} {s.label}
+            </option>
+          ))}
+        </select>
         {departements.length > 1 && (
           <select
             className={selectCls}

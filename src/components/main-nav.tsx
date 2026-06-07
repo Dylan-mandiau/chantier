@@ -8,7 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { HardHat, Building2, Bell, Shield, Users, LogOut, ChevronDown } from "lucide-react";
+import { HardHat, Building2, Bell, Shield, Users, LogOut, ChevronDown, ListChecks } from "lucide-react";
 
 /**
  * Navigation principale (desktop) : liens avec état actif + menu profil
@@ -45,6 +45,9 @@ export function MainNav({
       </Link>
       <Link href="/entreprises" className={itemCls("/entreprises")}>
         <Building2 className="size-4" /> Entreprises
+      </Link>
+      <Link href="/suivi" className={itemCls("/suivi")}>
+        <ListChecks className="size-4" /> Suivi
       </Link>
       <Link href="/relances" className={itemCls("/relances")}>
         <Bell className="size-4" /> Relances
