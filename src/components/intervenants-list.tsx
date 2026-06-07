@@ -7,6 +7,7 @@ import { ContactActions } from "@/components/contact-actions";
 import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
 import { PremierContactButton } from "@/components/premier-contact-button";
 import { PlanifierRelanceButton } from "@/components/planifier-relance-button";
+import { IntervenantSuiviSelect } from "@/components/intervenant-suivi-select";
 import type { StatutCommercial } from "@/lib/statut/compute";
 
 export interface IntervenantItem {
@@ -20,6 +21,8 @@ export interface IntervenantItem {
   email: string | null;
   statut: StatutCommercial;
   code_client_salti: string | null;
+  /** Statut de suivi MANUEL « où j'en suis » (null = non défini). */
+  statutSuivi: string | null;
 }
 
 type Filter = "all" | "salti" | "inconnu";
@@ -112,6 +115,13 @@ export function IntervenantsList({
                 telephone={it.telephone}
                 email={it.email}
                 nom={it.raison_sociale}
+              />
+
+              {/* Statut de suivi manuel « où j'en suis » (par chantier) */}
+              <IntervenantSuiviSelect
+                chantierId={chantierId}
+                entrepriseId={it.entreprise_id}
+                statut={it.statutSuivi}
               />
 
               {/* Actions sur leur propre ligne -> toujours accessibles sur mobile */}

@@ -76,7 +76,7 @@ export default async function EntrepriseDetailPage({
 
   if (!entreprise) notFound();
 
-  const [interventionsRes, relancesRes, contactsRes, personnesRes, auditRes] =
+  const [interventionsRes, relancesRes, contactsRes, personnesRes, auditRes, suiviRes] =
     await Promise.all([
       supabase
         .from("chantier_intervenants")
@@ -117,7 +117,15 @@ export default async function EntrepriseDetailPage({
         .order("modifie_at", { ascending: false })
         .limit(50)
         .returns<AuditRow[]>(),
+      // Statut de suivi manuel par chantier pour cette entreprise (#44)
+      supabase
+        .from("intervenant_suivi")
+        .select("chantier_id, statut")
+        .eq("entreprise_id", id),
     ]);
+
+  const suiviByChantier = new Map<string, string>();
+  (suiviRes.data ?? []).forEach((s) => suiviByChantier.set(s.chantier_id, s.statut));
 
   const today = new Date().toISOString().slice(0, 10);
   const dernierContact: StatutInputs["dernierContact"] =
@@ -146,7 +154,7 @@ export default async function EntrepriseDetailPage({
   // Chantiers distincts (dédup par id)
   const chantiersMap = new Map<
     string,
-    { id: string; titre: string; ville: string | null; lots: string[] }
+    { id: string; titre: string; ville: string | null; lots: string[]; statutSuivi: string | null }
   >();
   (interventionsRes.data ?? []).forEach((iv) => {
     if (!iv.chantier) return;
@@ -162,6 +170,7 @@ export default async function EntrepriseDetailPage({
         titre: iv.chantier.titre,
         ville: iv.chantier.ville,
         lots: [lotLabel],
+        statutSuivi: suiviByChantier.get(iv.chantier.id) ?? null,
       });
     }
   });

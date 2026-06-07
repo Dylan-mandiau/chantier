@@ -338,6 +338,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      intervenant_suivi: {
+        Row: {
+          id: string;
+          chantier_id: string;
+          entreprise_id: string;
+          agence_id: string | null;
+          statut: string;
+          note: string | null;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          chantier_id: string;
+          entreprise_id: string;
+          agence_id?: string | null;
+          statut: string;
+          note?: string | null;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          chantier_id?: string;
+          entreprise_id?: string;
+          agence_id?: string | null;
+          statut?: string;
+          note?: string | null;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       chantier_intervenants: {
         Row: {
           id: string;

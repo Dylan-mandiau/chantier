@@ -81,7 +81,7 @@ export default async function ChantierDetailPage({
       ? entrepriseIds
       : ["00000000-0000-0000-0000-000000000000"];
 
-  const [contactsRes, relancesRes, entreprisesRes, profileRes, auditRes] =
+  const [contactsRes, relancesRes, entreprisesRes, profileRes, auditRes, suiviRes] =
     await Promise.all([
       supabase
         .from("contacts_envoyes")
@@ -111,7 +111,15 @@ export default async function ChantierDetailPage({
         .eq("chantier_id", id)
         .order("modifie_at", { ascending: false })
         .limit(50),
+      // Statut de suivi manuel « où j'en suis » par entreprise (#44)
+      supabase
+        .from("intervenant_suivi")
+        .select("entreprise_id, statut")
+        .eq("chantier_id", id),
     ]);
+
+  const suiviByEnt = new Map<string, string>();
+  (suiviRes.data ?? []).forEach((s) => suiviByEnt.set(s.entreprise_id, s.statut));
 
   const codeClientByEnt = new Map<string, string | null>();
   (entreprisesRes.data ?? []).forEach((e) =>
@@ -173,6 +181,7 @@ export default async function ChantierDetailPage({
         email: ent.email,
         statut,
         code_client_salti: codeClientByEnt.get(ent.id) ?? null,
+        statutSuivi: suiviByEnt.get(ent.id) ?? null,
       };
     });
 

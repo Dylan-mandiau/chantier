@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
+import { SUIVI_STATUTS, suiviConfig } from "@/lib/suivi/statuts";
 import { Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import type { StatutCommercial } from "@/lib/statut/compute";
@@ -32,7 +33,7 @@ export interface EntrepriseDetail {
   code_postal: string | null;
   code_client_salti: string | null;
   statut: StatutCommercial;
-  chantiers: { id: string; titre: string; ville: string | null; lots: string[] }[];
+  chantiers: { id: string; titre: string; ville: string | null; lots: string[]; statutSuivi: string | null }[];
   relances: { id: string; date_relance: string; motif: string; status: string }[];
   contacts: { id: string; envoye_at: string; sujet: string; statut: string }[];
   personnes: Personne[];
@@ -240,6 +241,25 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {/* Résumé du suivi : combien de chantiers à chaque statut (#44) */}
+          {(() => {
+            const counts = new Map<string, number>();
+            detail.chantiers.forEach((c) => {
+              if (c.statutSuivi)
+                counts.set(c.statutSuivi, (counts.get(c.statutSuivi) ?? 0) + 1);
+            });
+            const parts = SUIVI_STATUTS.filter((s) => counts.get(s.value));
+            if (parts.length === 0) return null;
+            return (
+              <div className="flex flex-wrap gap-1.5 pb-1">
+                {parts.map((s) => (
+                  <Badge key={s.value} variant="outline" className={`text-xs ${s.classes}`}>
+                    {s.emoji} {counts.get(s.value)} {s.label.toLowerCase()}
+                  </Badge>
+                ))}
+              </div>
+            );
+          })()}
           {detail.chantiers.length === 0 && (
             <p className="text-sm text-muted-foreground">
               Aucun chantier associé (visible par toi).
@@ -248,7 +268,17 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
           {detail.chantiers.map((c) => (
             <Link key={c.id} href={`/chantiers/${c.id}`}>
               <div className="border rounded p-3 hover:bg-muted transition-colors">
-                <p className="font-medium">{c.titre}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium">{c.titre}</p>
+                  {(() => {
+                    const cfg = suiviConfig(c.statutSuivi);
+                    return cfg ? (
+                      <Badge variant="outline" className={`shrink-0 text-xs ${cfg.classes}`}>
+                        {cfg.emoji} {cfg.label}
+                      </Badge>
+                    ) : null;
+                  })()}
+                </div>
                 {c.ville && (
                   <p className="text-xs text-muted-foreground">📍 {c.ville}</p>
                 )}
