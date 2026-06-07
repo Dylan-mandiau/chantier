@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
-import { chantierDedupKey } from "@/lib/dedup/chantier";
+import { chantierDedupKey, chantierAdresseKey } from "@/lib/dedup/chantier";
 import { detectChantierDuplicate } from "@/lib/dedup/chantier-detect";
 import { z } from "zod";
 
@@ -51,6 +51,9 @@ export async function POST(request: Request) {
   // Même détection que /api/chantiers/check-duplicate (appelée plus tôt, après
   // l'analyse). dedupKey est aussi stocké sur la ligne pour les recherches.
   const dedupKey = chantierDedupKey(analyzed.projet);
+  // Clé adresse seule : stockée en plus du dedup_key pour une détection robuste
+  // (matcher permis OU adresse, cf. detectChantierDuplicate).
+  const dedupKeyAdresse = chantierAdresseKey(analyzed.projet);
   if (!force) {
     const duplicate = await detectChantierDuplicate(admin, {
       userId: user.id,
@@ -98,6 +101,7 @@ export async function POST(request: Request) {
         created_by: user.id,
         agence_id: agenceId,
         dedup_key: dedupKey,
+        dedup_key_adresse: dedupKeyAdresse,
         panneau_id: panneauId,
         ia_raw_json: analyzed as unknown as never,
       })

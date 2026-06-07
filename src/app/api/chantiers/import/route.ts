@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const { data: src } = await admin
     .from("chantiers")
     .select(
-      "id, titre, adresse, ville, code_postal, permis_construire, date_pc, montant_travaux_ht, dedup_key, panneau_id, ia_raw_json"
+      "id, titre, adresse, ville, code_postal, permis_construire, date_pc, montant_travaux_ht, dedup_key, dedup_key_adresse, panneau_id, ia_raw_json"
     )
     .eq("id", parsed.data.source_chantier_id)
     .single();
@@ -83,6 +83,7 @@ export async function POST(request: Request) {
       created_by: user.id,
       agence_id: agenceId,
       dedup_key: src.dedup_key,
+      dedup_key_adresse: src.dedup_key_adresse,
       panneau_id: src.panneau_id, // même panneau -> lien durable
       ia_raw_json: src.ia_raw_json,
     })

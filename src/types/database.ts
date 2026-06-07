@@ -140,6 +140,7 @@ export interface Database {
           created_by: string;
           agence_id: string | null;
           dedup_key: string | null;
+          dedup_key_adresse: string | null;
           panneau_id: string | null;
           ia_raw_json: Json | null;
           created_at: string;
@@ -162,6 +163,7 @@ export interface Database {
           created_by: string;
           agence_id?: string | null;
           dedup_key?: string | null;
+          dedup_key_adresse?: string | null;
           panneau_id?: string | null;
           ia_raw_json?: Json | null;
           created_at?: string;
@@ -184,6 +186,7 @@ export interface Database {
           created_by?: string;
           agence_id?: string | null;
           dedup_key?: string | null;
+          dedup_key_adresse?: string | null;
           panneau_id?: string | null;
           ia_raw_json?: Json | null;
           created_at?: string;

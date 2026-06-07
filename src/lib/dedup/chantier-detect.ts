@@ -4,7 +4,7 @@
 //   - POST /api/chantiers/check-duplicate (détection précoce, après analyse)
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { chantierDedupKey } from "./chantier";
+import { chantierPermisKey, chantierAdresseKey } from "./chantier";
 
 export interface ChantierDuplicate {
   id: string;
@@ -17,11 +17,25 @@ export interface ChantierDuplicate {
   photo_url: string | null;
 }
 
+type DupRow = {
+  id: string;
+  titre: string;
+  created_by: string;
+  created_at: string;
+  agence_id: string | null;
+  photo_principale_url: string | null;
+};
+
+const COLS = "id, titre, created_by, created_at, agence_id, photo_principale_url";
+
 /**
- * Cherche un chantier déjà existant pour le même panneau (clé permis ou
- * adresse+titre). Priorité au doublon DANS l'agence de l'utilisateur (cible
- * de fusion collaborative). Doit recevoir un client SERVICE ROLE pour
- * détecter au-delà de la RLS (chantiers d'autres commerciaux / agences).
+ * Cherche un chantier déjà existant pour le même panneau. Dédup ROBUSTE : on
+ * matche sur la clé permis OU sur la clé adresse (les deux signaux sont
+ * calculés et testés simultanément). Cela rattrape le cas fréquent où le permis
+ * n'a été lu que sur l'un des deux scans du même panneau : la clé adresse prend
+ * alors le relais. Priorité au doublon DANS l'agence de l'utilisateur (cible de
+ * fusion collaborative). Doit recevoir un client SERVICE ROLE pour détecter
+ * au-delà de la RLS (chantiers d'autres commerciaux / agences).
  */
 export async function detectChantierDuplicate(
   admin: SupabaseClient<Database>,
@@ -36,15 +50,36 @@ export async function detectChantierDuplicate(
     };
   }
 ): Promise<ChantierDuplicate | null> {
-  const dedupKey = chantierDedupKey(opts.projet);
-  if (!dedupKey) return null;
+  const permisKey = chantierPermisKey(opts.projet);
+  const adresseKey = chantierAdresseKey(opts.projet);
+  if (!permisKey && !adresseKey) return null;
 
-  const { data: dups } = await admin
-    .from("chantiers")
-    .select("id, titre, created_by, created_at, agence_id, photo_principale_url")
-    .eq("dedup_key", dedupKey)
-    .order("created_at", { ascending: true });
-  if (!dups || dups.length === 0) return null;
+  // Deux lookups indexés (permis sur dedup_key, adresse sur dedup_key_adresse)
+  // fusionnés par id : un chantier matche s'il partage le permis OU l'adresse.
+  const byId = new Map<string, DupRow>();
+
+  if (permisKey) {
+    const { data } = await admin
+      .from("chantiers")
+      .select(COLS)
+      .eq("dedup_key", permisKey)
+      .returns<DupRow[]>();
+    (data ?? []).forEach((d) => byId.set(d.id, d));
+  }
+  if (adresseKey) {
+    const { data } = await admin
+      .from("chantiers")
+      .select(COLS)
+      .eq("dedup_key_adresse", adresseKey)
+      .returns<DupRow[]>();
+    (data ?? []).forEach((d) => byId.set(d.id, d));
+  }
+
+  const dups = [...byId.values()];
+  if (dups.length === 0) return null;
+
+  // Cible stable : la fiche la plus ancienne (origine du panneau).
+  dups.sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   const sameAgenceDup =
     opts.agenceId !== null
