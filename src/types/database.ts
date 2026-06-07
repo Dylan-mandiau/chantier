@@ -84,6 +84,9 @@ export interface Database {
           email: string | null;
           site_web: string | null;
           code_client_salti: string | null;
+          verifie: boolean;
+          verifie_par: string | null;
+          verifie_at: string | null;
           source_info: Json;
           enrichi_at: string | null;
           created_at: string;
@@ -100,6 +103,9 @@ export interface Database {
           email?: string | null;
           site_web?: string | null;
           code_client_salti?: string | null;
+          verifie?: boolean;
+          verifie_par?: string | null;
+          verifie_at?: string | null;
           source_info?: Json;
           enrichi_at?: string | null;
           created_at?: string;
@@ -116,6 +122,9 @@ export interface Database {
           email?: string | null;
           site_web?: string | null;
           code_client_salti?: string | null;
+          verifie?: boolean;
+          verifie_par?: string | null;
+          verifie_at?: string | null;
           source_info?: Json;
           enrichi_at?: string | null;
           created_at?: string;

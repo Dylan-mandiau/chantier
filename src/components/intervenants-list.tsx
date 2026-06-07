@@ -8,6 +8,7 @@ import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
 import { PremierContactButton } from "@/components/premier-contact-button";
 import { PlanifierRelanceButton } from "@/components/planifier-relance-button";
 import { IntervenantSuiviSelect } from "@/components/intervenant-suivi-select";
+import { VerifieToggle } from "@/components/verifie-toggle";
 import type { StatutCommercial } from "@/lib/statut/compute";
 
 export interface IntervenantItem {
@@ -23,6 +24,8 @@ export interface IntervenantItem {
   code_client_salti: string | null;
   /** Statut de suivi MANUEL « où j'en suis » (null = non défini). */
   statutSuivi: string | null;
+  /** Entreprise vérifiée par un humain (#38). */
+  verifie: boolean;
 }
 
 type Filter = "all" | "salti" | "inconnu";
@@ -109,6 +112,7 @@ export function IntervenantsList({
                   {it.raison_sociale}
                 </Link>
                 <StatutCommercialBadge statut={it.statut} />
+                <VerifieToggle entrepriseId={it.entreprise_id} verifie={it.verifie} />
               </div>
 
               <ContactActions

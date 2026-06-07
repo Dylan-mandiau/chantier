@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatutCommercialBadge } from "@/components/statut-commercial-badge";
 import { SUIVI_STATUTS, suiviConfig } from "@/lib/suivi/statuts";
+import { VerifieToggle } from "@/components/verifie-toggle";
 import { Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import type { StatutCommercial } from "@/lib/statut/compute";
@@ -32,6 +33,8 @@ export interface EntrepriseDetail {
   ville: string | null;
   code_postal: string | null;
   code_client_salti: string | null;
+  verifie: boolean;
+  verifieLabel: string | null;
   statut: StatutCommercial;
   chantiers: { id: string; titre: string; ville: string | null; lots: string[]; statutSuivi: string | null }[];
   relances: { id: string; date_relance: string; motif: string; status: string }[];
@@ -117,6 +120,11 @@ export function EntrepriseClient({ detail }: { detail: EntrepriseDetail }) {
           <div className="flex items-center gap-2 flex-wrap">
             <CardTitle>{detail.raison_sociale}</CardTitle>
             <StatutCommercialBadge statut={detail.statut} />
+            <VerifieToggle
+              entrepriseId={detail.id}
+              verifie={detail.verifie}
+              label={detail.verifieLabel}
+            />
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

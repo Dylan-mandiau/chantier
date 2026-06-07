@@ -183,6 +183,7 @@ export default async function EntrepriseDetailPage({
       [
         ...personnesRows.map((p) => p.created_by),
         ...auditRows.map((a) => a.modifie_par),
+        entreprise.verifie_par,
       ].filter((x): x is string => !!x)
     ),
   ];
@@ -221,6 +222,19 @@ export default async function EntrepriseDetailPage({
     auteur: a.modifie_par ? authorMap.get(a.modifie_par) ?? null : null,
   }));
 
+  // Libellé « vérifié par … le … » (#38)
+  const verifieLabel =
+    entreprise.verifie && entreprise.verifie_par
+      ? `${authorMap.get(entreprise.verifie_par) ?? "?"}${
+          entreprise.verifie_at
+            ? " · " +
+              new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(
+                new Date(entreprise.verifie_at)
+              )
+            : ""
+        }`
+      : null;
+
   const detail: EntrepriseDetail = {
     id: entreprise.id,
     raison_sociale: entreprise.raison_sociale,
@@ -232,6 +246,8 @@ export default async function EntrepriseDetailPage({
     ville: entreprise.ville,
     code_postal: entreprise.code_postal,
     code_client_salti: entreprise.code_client_salti,
+    verifie: entreprise.verifie,
+    verifieLabel,
     statut,
     chantiers: [...chantiersMap.values()],
     relances: (relancesRes.data ?? []).filter((r) => r.status === "planifiee"),

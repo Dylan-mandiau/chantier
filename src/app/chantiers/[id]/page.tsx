@@ -97,7 +97,7 @@ export default async function ChantierDetailPage({
         .order("date_relance", { ascending: true }),
       supabase
         .from("entreprises")
-        .select("id, code_client_salti")
+        .select("id, code_client_salti, verifie")
         .in("id", safeIds),
       supabase
         .from("profiles")
@@ -122,9 +122,11 @@ export default async function ChantierDetailPage({
   (suiviRes.data ?? []).forEach((s) => suiviByEnt.set(s.entreprise_id, s.statut));
 
   const codeClientByEnt = new Map<string, string | null>();
-  (entreprisesRes.data ?? []).forEach((e) =>
-    codeClientByEnt.set(e.id, e.code_client_salti)
-  );
+  const verifieByEnt = new Map<string, boolean>();
+  (entreprisesRes.data ?? []).forEach((e) => {
+    codeClientByEnt.set(e.id, e.code_client_salti);
+    verifieByEnt.set(e.id, e.verifie);
+  });
 
   const lastContactByEnt = new Map<
     string,
@@ -182,6 +184,7 @@ export default async function ChantierDetailPage({
         statut,
         code_client_salti: codeClientByEnt.get(ent.id) ?? null,
         statutSuivi: suiviByEnt.get(ent.id) ?? null,
+        verifie: verifieByEnt.get(ent.id) ?? false,
       };
     });
 
