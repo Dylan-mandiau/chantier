@@ -49,60 +49,16 @@ function StatTile({
 }
 
 export function ProgressDashboard({
-  prenom,
   scansTotal,
   scansWeek,
   contactsTotal,
   contactsWeek,
   relancesAFaire,
   relancesEnRetard,
-  weeklyGoal = 5,
 }: ProgressStats) {
-  const pct = Math.min(100, Math.round((scansWeek / weeklyGoal) * 100));
-  const goalReached = scansWeek >= weeklyGoal;
-  const reste = Math.max(0, weeklyGoal - scansWeek);
-
-  const message = goalReached
-    ? "Objectif atteint ! 🎉"
-    : scansWeek === 0
-      ? "C'est parti ! 🚀"
-      : `Encore ${reste} pour l'objectif 💪`;
-
   return (
     <section className="space-y-3">
-      {/* Accueil + objectif hebdo */}
-      <div className="rounded-2xl border bg-gradient-to-br from-primary/20 to-primary/5 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Ta semaine</p>
-            <h2 className="text-xl font-bold">
-              {prenom ? `Salut ${prenom} 👋` : "Bienvenue 👋"}
-            </h2>
-          </div>
-          {goalReached && (
-            <span className="text-3xl" aria-hidden>
-              🏆
-            </span>
-          )}
-        </div>
-
-        <div className="mt-3">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium">
-              Objectif de la semaine · {scansWeek}/{weeklyGoal} scans
-            </span>
-            <span className="text-muted-foreground">{message}</span>
-          </div>
-          <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-500"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Tuiles compteurs */}
+      {/* Compteurs de la semaine (sans objectif/ludification) */}
       <div className="grid grid-cols-3 gap-2">
         <StatTile
           emoji="📸"
