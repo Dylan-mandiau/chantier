@@ -2,20 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HardHat, Building2, Bell, Users, Shield, Plus, ListChecks } from "lucide-react";
+import { HardHat, Building2, Bell, Plus, ListChecks } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 /**
  * Barre de navigation mobile (en bas), façon application native.
  * Affichée < sm uniquement. Bouton "Scanner" central (jaune) = action clé.
+ * 5 items pour rester lisible ; Admin/Équipe reste dans le menu hamburger.
  */
-export function BottomNav({
-  isManager,
-  isAdmin,
-}: {
-  isManager: boolean;
-  isAdmin: boolean;
-}) {
+export function BottomNav() {
   const pathname = usePathname();
 
   // Masquée sur les parcours "focalisés" qui ont déjà leur propre barre
@@ -75,15 +70,6 @@ export function BottomNav({
 
         <Item href="/suivi" icon={ListChecks} label="Suivi" />
         <Item href="/relances" icon={Bell} label="Relances" />
-        {isManager ? (
-          <Item
-            href="/admin"
-            icon={isAdmin ? Shield : Users}
-            label={isAdmin ? "Admin" : "Équipe"}
-          />
-        ) : (
-          <div className="flex-1" />
-        )}
       </div>
     </nav>
   );

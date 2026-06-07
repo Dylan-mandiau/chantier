@@ -77,7 +77,7 @@ export async function Header() {
         </div>
       </div>
     </header>
-      <BottomNav isManager={isManager} isAdmin={isAdmin} />
+      <BottomNav />
     </>
   );
 }
