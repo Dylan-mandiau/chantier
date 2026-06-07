@@ -120,6 +120,43 @@ export function KpiDashboard({ data, periode }: { data: KpiData; periode: number
         />
       </div>
 
+      {/* Utilisation de l'outil */}
+      <div>
+        <p className="text-sm font-medium mb-2">⚙️ Utilisation de l&apos;outil</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Kpi
+            emoji="👥"
+            value={`${data.utilisation.actifs}/${data.utilisation.totalUtilisateurs}`}
+            label="utilisateurs actifs"
+            sub="≥1 action sur la période"
+          />
+          <Kpi
+            emoji="📈"
+            value={
+              data.utilisation.adoptionPct === null
+                ? "—"
+                : `${data.utilisation.adoptionPct}%`
+            }
+            label="taux d'adoption"
+          />
+          <Kpi
+            emoji="⚡"
+            value={String(data.utilisation.totalActions)}
+            label="actions totales"
+            sub="scans · contacts · suivis · éditions"
+          />
+          <Kpi
+            emoji="🔁"
+            value={
+              data.utilisation.actionsParActif === null
+                ? "—"
+                : String(data.utilisation.actionsParActif)
+            }
+            label="actions / actif"
+          />
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Scans par jour */}
         <Card>
