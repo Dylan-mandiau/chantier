@@ -316,6 +316,9 @@ export default async function AdminDashboardPage({
             <Link href="/admin/kpi">
               <Button variant="outline" size="sm">📊 KPI</Button>
             </Link>
+            <Link href="/admin/journal">
+              <Button variant="outline" size="sm">🧾 Journal</Button>
+            </Link>
             <Link href="/admin/templates">
               <Button variant="outline" size="sm">Templates</Button>
             </Link>

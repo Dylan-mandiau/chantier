@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/is-admin";
 import { writeChantierAudit } from "@/lib/audit/chantier";
+import { logActivity } from "@/lib/audit/activity";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -126,6 +127,14 @@ export async function POST(request: Request) {
     changements: {
       fusion: { avant: loser.titre, apres: "doublon fusionné dans cette fiche" },
     },
+  });
+  await logActivity(admin, {
+    userId: auth.userId,
+    agenceId: keeper.agence_id,
+    action: "fusion",
+    entite: "chantier",
+    entiteId: keeper_id,
+    libelle: `Fusion : ${loser.titre}`,
   });
 
   return NextResponse.json({ ok: true });

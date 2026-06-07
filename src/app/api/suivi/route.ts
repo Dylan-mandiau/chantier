@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { SUIVI_VALUES } from "@/lib/suivi/statuts";
+import { logActivity } from "@/lib/audit/activity";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -61,6 +62,15 @@ export async function POST(request: Request) {
     { onConflict: "chantier_id,entreprise_id" }
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logActivity(admin, {
+    userId: user.id,
+    agenceId,
+    action: "suivi",
+    entite: "entreprise",
+    entiteId: entreprise_id,
+    libelle: statut,
+  });
 
   return NextResponse.json({ ok: true, statut });
 }

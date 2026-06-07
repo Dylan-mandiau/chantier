@@ -4,6 +4,7 @@ import { AnalyzedPanneauSchema } from "@/lib/ai/schema";
 import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
 import { chantierDedupKey, chantierAdresseKey } from "@/lib/dedup/chantier";
 import { writeChantierAudit, diffChantier } from "@/lib/audit/chantier";
+import { logActivity } from "@/lib/audit/activity";
 import { z } from "zod";
 
 const PatchSchema = z.object({
@@ -108,6 +109,14 @@ export async function PATCH(
         changements,
       });
     }
+    await logActivity(admin, {
+      userId: user.id,
+      agenceId: existing.agence_id,
+      action: "edit_chantier",
+      entite: "chantier",
+      entiteId: id,
+      libelle: analyzed.projet.titre,
+    });
 
     // 2. Supprimer TOUS les intervenants existants pour ce chantier (admin pour passer RLS si délicat)
     const { error: delErr } = await admin

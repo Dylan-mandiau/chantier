@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/audit/activity";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -12,6 +13,20 @@ export async function login(formData: FormData) {
   };
   const { error } = await supabase.auth.signInWithPassword(data);
   if (error) return { error: error.message };
+
+  // Journal d'activité (#49) : trace la connexion.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    await logActivity(createAdminClient(), {
+      userId: user.id,
+      action: "connexion",
+      entite: "auth",
+      libelle: "Connexion",
+    });
+  }
+
   revalidatePath("/", "layout");
   redirect("/");
 }

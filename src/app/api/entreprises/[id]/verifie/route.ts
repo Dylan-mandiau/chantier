@@ -4,6 +4,7 @@
 // utilisateur connecté peut la poser. Écrit via service role + horodatage/auteur.
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/audit/activity";
 import { z } from "zod";
 
 const Schema = z.object({ verifie: z.boolean() });
@@ -35,6 +36,14 @@ export async function POST(
     })
     .eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logActivity(admin, {
+    userId: user.id,
+    action: parsed.data.verifie ? "verifie" : "verifie_retire",
+    entite: "entreprise",
+    entiteId: id,
+    libelle: parsed.data.verifie ? "Entreprise vérifiée" : "Vérification retirée",
+  });
 
   return NextResponse.json({ ok: true, verifie: parsed.data.verifie });
 }

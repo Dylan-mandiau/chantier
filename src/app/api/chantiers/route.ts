@@ -5,6 +5,7 @@ import { normalizeRaisonSociale } from "@/lib/dedup/entreprise";
 import { chantierDedupKey, chantierAdresseKey } from "@/lib/dedup/chantier";
 import { detectChantierDuplicate } from "@/lib/dedup/chantier-detect";
 import { writeChantierAudit } from "@/lib/audit/chantier";
+import { logActivity } from "@/lib/audit/activity";
 import { z } from "zod";
 
 const RequestSchema = z.object({
@@ -125,6 +126,14 @@ export async function POST(request: Request) {
       modifiePar: user.id,
       titre: analyzed.projet.titre,
       action: "creation",
+    });
+    await logActivity(admin, {
+      userId: user.id,
+      agenceId,
+      action: "scan",
+      entite: "chantier",
+      entiteId: chantier.id,
+      libelle: analyzed.projet.titre,
     });
 
     for (let i = 0; i < analyzed.intervenants.length; i++) {
