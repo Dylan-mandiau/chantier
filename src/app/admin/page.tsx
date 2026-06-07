@@ -312,7 +312,10 @@ export default async function AdminDashboardPage({
             : "👥 Mon équipe"}
         </h1>
         {isAdmin ? (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/admin/kpi">
+              <Button variant="outline" size="sm">📊 KPI</Button>
+            </Link>
             <Link href="/admin/templates">
               <Button variant="outline" size="sm">Templates</Button>
             </Link>
