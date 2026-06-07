@@ -45,6 +45,7 @@ type ChantierRow = {
   ville: string | null;
   created_by: string;
   created_at: string;
+  panneau_id: string | null;
 };
 
 function profileLabel(p: ProfileRow): string {
@@ -160,7 +161,7 @@ export default async function AdminDashboardPage({
   // Chantiers période + périmètre
   const { data: chantiersData } = await admin
     .from("chantiers")
-    .select("id, titre, ville, created_by, created_at")
+    .select("id, titre, ville, created_by, created_at, panneau_id")
     .in("created_by", safeCom)
     .gte("created_at", sinceIso)
     .order("created_at", { ascending: false });
@@ -293,6 +294,7 @@ export default async function AdminDashboardPage({
       agenceLabel: p?.agence_id ? agenceNom.get(p.agence_id) ?? null : null,
       dateLabel: fmtDate(c.created_at),
       dateIso: c.created_at,
+      panneauId: c.panneau_id,
     };
   });
 
