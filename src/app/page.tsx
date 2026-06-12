@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import {
@@ -39,6 +40,9 @@ export default async function HomePage() {
       `id, titre, ville, code_postal, photo_principale_url, created_at, created_by,
        chantier_intervenants(count)`
     )
+    // Les brouillons (scans pas encore validés) restent hors du tableau de bord
+    // tant qu'ils ne sont pas publiés. On les retrouve via /brouillons.
+    .neq("status", "brouillon")
     .order("created_at", { ascending: false })
     .limit(300);
   query = agenceId
@@ -103,6 +107,7 @@ export default async function HomePage() {
     contactsWeekRes,
     relancesAFaireRes,
     relancesEnRetardRes,
+    brouillonsRes,
   ] = await Promise.all([
     supabase
       .from("chantiers")
@@ -131,7 +136,15 @@ export default async function HomePage() {
       .select("id", { count: "exact", head: true })
       .eq("status", "planifiee")
       .lt("date_relance", todayISO),
+    // Mes brouillons (scans pas encore validés) — accès dédié hors tableau de bord.
+    supabase
+      .from("chantiers")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", user.id)
+      .eq("status", "brouillon"),
   ]);
+
+  const brouillonsCount = brouillonsRes.count ?? 0;
 
   const stats = {
     prenom: profile?.prenom ?? null,
@@ -147,7 +160,23 @@ export default async function HomePage() {
     <ChantiersListClient
       items={items}
       isAgence={agenceId !== null}
-      header={<ProgressDashboard {...stats} />}
+      header={
+        <>
+          {brouillonsCount > 0 && (
+            <Link
+              href="/brouillons"
+              className="flex items-center justify-between gap-2 rounded-lg border border-[#FFDD00] bg-[#FFDD00]/10 px-4 py-3 text-sm font-medium transition-colors hover:bg-[#FFDD00]/20"
+            >
+              <span>
+                📝 {brouillonsCount} brouillon{brouillonsCount > 1 ? "s" : ""} à
+                finaliser
+              </span>
+              <span aria-hidden>→</span>
+            </Link>
+          )}
+          <ProgressDashboard {...stats} />
+        </>
+      }
     />
   );
 }

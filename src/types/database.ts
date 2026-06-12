@@ -144,7 +144,7 @@ export interface Database {
           date_pc: string | null;
           montant_travaux_ht: number | null;
           photo_principale_url: string;
-          status: "actif" | "archive";
+          status: "actif" | "archive" | "brouillon";
           notes: string | null;
           created_by: string;
           agence_id: string | null;
@@ -167,7 +167,7 @@ export interface Database {
           date_pc?: string | null;
           montant_travaux_ht?: number | null;
           photo_principale_url: string;
-          status?: "actif" | "archive";
+          status?: "actif" | "archive" | "brouillon";
           notes?: string | null;
           created_by: string;
           agence_id?: string | null;
@@ -190,7 +190,7 @@ export interface Database {
           date_pc?: string | null;
           montant_travaux_ht?: number | null;
           photo_principale_url?: string;
-          status?: "actif" | "archive";
+          status?: "actif" | "archive" | "brouillon";
           notes?: string | null;
           created_by?: string;
           agence_id?: string | null;

@@ -17,6 +17,9 @@ const RequestSchema = z.object({
   // force=true : l'utilisateur a vu l'alerte "déjà scanné" et veut créer
   // quand même un nouveau chantier (on saute la dédup).
   force: z.boolean().optional().default(false),
+  // brouillon=true : création immédiate en brouillon (juste après l'analyse),
+  // sans bloquer sur la dédup (c'est un brouillon, l'alerte précoce a déjà prévenu).
+  brouillon: z.boolean().optional().default(false),
 });
 
 export async function POST(request: Request) {
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { photo_path, lat, lng, notes, analyzed, force } = parsed.data;
+  const { photo_path, lat, lng, notes, analyzed, force, brouillon } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
   // Clé adresse seule : stockée en plus du dedup_key pour une détection robuste
   // (matcher permis OU adresse, cf. detectChantierDuplicate).
   const dedupKeyAdresse = chantierAdresseKey(analyzed.projet);
-  if (!force) {
+  if (!force && !brouillon) {
     const duplicate = await detectChantierDuplicate(admin, {
       userId: user.id,
       agenceId,
@@ -100,6 +103,7 @@ export async function POST(request: Request) {
         montant_travaux_ht: analyzed.projet.montant_travaux_ht,
         photo_principale_url: photo_path,
         notes,
+        status: brouillon ? "brouillon" : "actif",
         created_by: user.id,
         agence_id: agenceId,
         dedup_key: dedupKey,

@@ -58,6 +58,17 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
   const [forceCreate, setForceCreate] = useState(false);
   // Import inter-agence en cours.
   const [importing, setImporting] = useState(false);
+  // Brouillon auto-créé juste après l'analyse → le scan n'est jamais perdu,
+  // même si l'utilisateur ne valide pas.
+  const [brouillonId, setBrouillonId] = useState<string | null>(null);
+  // Corbeille d'intervenants : suppression récupérable pendant la relecture.
+  const [deleted, setDeleted] = useState<
+    {
+      intervenant: AnalyzedPanneau["intervenants"][number];
+      iaValue: { telephone: string | null; email: string | null };
+    }[]
+  >([]);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,10 +108,15 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
               const dj = await dr.json();
               if (dj.duplicate && !cancelled) {
                 setDuplicate(dj.duplicate as DuplicateInfo);
+              } else if (!cancelled) {
+                await createBrouillon(parsed); // pas de doublon -> brouillon auto
               }
+            } else if (!cancelled) {
+              await createBrouillon(parsed);
             }
           } catch {
-            // silencieux : le contrôle à l'enregistrement prendra le relais
+            // doublon non vérifiable -> on crée quand même le brouillon (anti-perte)
+            if (!cancelled) await createBrouillon(parsed);
           }
         }
       } catch (e) {
@@ -144,12 +160,53 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
     setData({ ...data, intervenants: next });
   }
 
+  // Suppression RÉCUPÉRABLE : l'intervenant part dans la corbeille (au lieu
+  // d'être perdu). On garde aussi sa valeur IA pour la restauration.
   function removeIntervenant(idx: number) {
     if (!data) return;
+    const intervenant = data.intervenants[idx];
+    const iaValue = iaValues[idx] ?? { telephone: null, email: null };
+    setDeleted((d) => [...d, { intervenant, iaValue }]);
     setData({
       ...data,
       intervenants: data.intervenants.filter((_, i) => i !== idx),
     });
+    setIaValues((v) => v.filter((_, i) => i !== idx));
+  }
+
+  function restoreIntervenant(di: number) {
+    const entry = deleted[di];
+    if (!entry || !data) return;
+    setData({ ...data, intervenants: [...data.intervenants, entry.intervenant] });
+    setIaValues((v) => [...v, entry.iaValue]);
+    setDeleted((d) => d.filter((_, i) => i !== di));
+  }
+
+  // Crée immédiatement un brouillon (status='brouillon') pour ne jamais perdre
+  // le scan. Appelé après l'analyse quand aucun doublon ne bloque, ou quand
+  // l'utilisateur choisit « créer quand même ».
+  async function createBrouillon(analyzedData: AnalyzedPanneau) {
+    if (brouillonId) return;
+    try {
+      const res = await fetch("/api/chantiers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photo_path: photoPath,
+          lat,
+          lng,
+          notes: null,
+          analyzed: analyzedData,
+          brouillon: true,
+        }),
+      });
+      if (res.ok) {
+        const { chantier_id } = await res.json();
+        setBrouillonId(chantier_id);
+      }
+    } catch {
+      // silencieux (ex. hors ligne) : la validation passera par le POST classique
+    }
   }
 
   // Import inter-agence : crée une fiche dans mon agence à partir de la source.
@@ -218,6 +275,51 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
       router.push(`/chantiers/${chantier_id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur inconnue");
+      setSaving(false);
+    }
+  }
+
+  // Valider = publier le brouillon (brouillon -> actif) avec les données éditées.
+  async function handleValidate() {
+    if (!data) return;
+    if (!brouillonId) {
+      // Pas de brouillon (ex. hors ligne / doublon en attente) -> création directe.
+      await handleSave(forceCreate);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/chantiers/${brouillonId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: notes.trim() || null,
+          analyzed: data,
+          publier: true,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Échec de la validation");
+      toast.success("Chantier publié sur ton tableau de bord");
+      router.push(`/chantiers/${brouillonId}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur inconnue");
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteDraft() {
+    if (!brouillonId) {
+      router.push("/");
+      return;
+    }
+    if (!confirm("Supprimer ce brouillon ? Le scan sera perdu.")) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/chantiers/${brouillonId}`, { method: "DELETE" });
+      toast.success("Brouillon supprimé");
+      router.push("/");
+    } catch {
+      toast.error("Suppression impossible");
       setSaving(false);
     }
   }
@@ -398,6 +500,42 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
               />
             </div>
           ))}
+
+          {/* Corbeille : intervenants supprimés, récupérables d'un clic */}
+          {deleted.length > 0 && (
+            <div className="pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setShowDeleted((v) => !v)}
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              >
+                🗑 Supprimés ({deleted.length}) · {showDeleted ? "masquer" : "récupérer"}
+              </button>
+              {showDeleted && (
+                <div className="mt-2 space-y-2">
+                  {deleted.map((d, di) => (
+                    <div
+                      key={di}
+                      className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 p-2"
+                    >
+                      <span className="min-w-0 truncate text-sm">
+                        {d.intervenant.raison_sociale || "(sans nom)"}
+                        <span className="text-muted-foreground"> · {d.intervenant.role}</span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => restoreIntervenant(di)}
+                      >
+                        Restaurer
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -414,10 +552,25 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
       </Card>
 
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t p-3">
-        <div className="container max-w-2xl mx-auto">
-          <Button onClick={() => handleSave(forceCreate)} disabled={saving} className="w-full h-12 text-lg">
-            {saving ? "Enregistrement…" : "Enregistrer le chantier"}
+        <div className="container max-w-2xl mx-auto space-y-1.5">
+          <Button onClick={handleValidate} disabled={saving} className="w-full h-12 text-lg">
+            {saving ? "…" : "Valider et publier"}
           </Button>
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground min-w-0 truncate">
+              {brouillonId
+                ? "📝 Brouillon enregistré — tu peux quitter sans rien perdre"
+                : ""}
+            </span>
+            <button
+              type="button"
+              onClick={handleDeleteDraft}
+              disabled={saving}
+              className="shrink-0 text-destructive hover:underline"
+            >
+              Supprimer le brouillon
+            </button>
+          </div>
         </div>
       </div>
 
@@ -486,9 +639,10 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                     variant="ghost"
                     onClick={() => {
                       // Mémorise le choix : l'utilisateur peut éditer puis
-                      // "Enregistrer" sans être ré-alerté.
+                      // "Valider" sans être ré-alerté. Et on crée le brouillon.
                       setForceCreate(true);
                       setDuplicate(null);
+                      if (data) createBrouillon(data);
                     }}
                   >
                     Créer quand même
@@ -509,6 +663,7 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                     onClick={() => {
                       setForceCreate(true);
                       setDuplicate(null);
+                      if (data) createBrouillon(data);
                     }}
                   >
                     Non, c&apos;est un autre → créer

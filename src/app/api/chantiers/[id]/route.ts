@@ -10,6 +10,8 @@ import { z } from "zod";
 const PatchSchema = z.object({
   notes: z.string().nullable(),
   analyzed: AnalyzedPanneauSchema,
+  // publier=true : valide un brouillon -> le passe en 'actif' (tableau de bord).
+  publier: z.boolean().optional().default(false),
 });
 
 /**
@@ -43,7 +45,7 @@ export async function PATCH(
       { status: 400 }
     );
   }
-  const { notes, analyzed } = parsed.data;
+  const { notes, analyzed, publier } = parsed.data;
 
   // Vérifier que le chantier existe ET appartient à l'utilisateur (RLS le ferait, mais explicite).
   // On récupère aussi les valeurs AVANT pour la traçabilité (diff avant/après).
@@ -77,6 +79,8 @@ export async function PATCH(
         dedup_key: chantierDedupKey(analyzed.projet),
         dedup_key_adresse: chantierAdresseKey(analyzed.projet),
         notes,
+        // Validation d'un brouillon : on le publie sur le tableau de bord.
+        ...(publier ? { status: "actif" as const } : {}),
       })
       .eq("id", id);
 
