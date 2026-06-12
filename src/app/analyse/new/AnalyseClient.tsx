@@ -94,10 +94,15 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
             }))
           );
 
-          // Détection PRÉCOCE du doublon : on prévient tout de suite (avant
-          // d'éditer) si le panneau est déjà dans l'agence. Simple SELECT
-          // indexé (~ms), aucun appel IA. Le garde-fou à l'enregistrement
-          // reste actif en filet de sécurité.
+          // ANTI-PERTE : on enregistre le brouillon TOUT DE SUITE, sans aucune
+          // condition, dès que l'analyse est prête. Même si le panneau est un
+          // doublon : le scan ne doit JAMAIS être perdu. La détection doublon
+          // ci-dessous n'est qu'un avertissement (elle ne bloque rien).
+          if (!cancelled) await createBrouillon(parsed);
+
+          // Détection PRÉCOCE du doublon : on prévient (avant d'éditer) si le
+          // panneau est déjà dans l'agence. Simple SELECT indexé (~ms), aucun
+          // appel IA. Purement informatif : le brouillon existe déjà.
           try {
             const dr = await fetch("/api/chantiers/check-duplicate", {
               method: "POST",
@@ -108,15 +113,10 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
               const dj = await dr.json();
               if (dj.duplicate && !cancelled) {
                 setDuplicate(dj.duplicate as DuplicateInfo);
-              } else if (!cancelled) {
-                await createBrouillon(parsed); // pas de doublon -> brouillon auto
               }
-            } else if (!cancelled) {
-              await createBrouillon(parsed);
             }
           } catch {
-            // doublon non vérifiable -> on crée quand même le brouillon (anti-perte)
-            if (!cancelled) await createBrouillon(parsed);
+            // doublon non vérifiable : pas grave, le brouillon est déjà créé.
           }
         }
       } catch (e) {
@@ -191,6 +191,9 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
       const res = await fetch("/api/chantiers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // keepalive : la requête se termine même si l'utilisateur quitte la page
+        // juste après (anti-perte). Corps largement < 64 KB.
+        keepalive: true,
         body: JSON.stringify({
           photo_path: photoPath,
           lat,
@@ -220,6 +223,21 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
     }
   }
 
+  // Supprime le brouillon auto quand il devient inutile : l'utilisateur a
+  // résolu le doublon autrement (import inter-agence, ou ouverture de la fiche
+  // commune existante). Évite un clone qui traînerait dans /brouillons.
+  async function discardBrouillon() {
+    if (!brouillonId) return;
+    try {
+      await fetch(`/api/chantiers/${brouillonId}`, {
+        method: "DELETE",
+        keepalive: true,
+      });
+    } catch {
+      // best-effort : si ça échoue, le brouillon reste supprimable à la main.
+    }
+  }
+
   // Import inter-agence : crée une fiche dans mon agence à partir de la source.
   async function handleImport() {
     if (!duplicate) return;
@@ -241,6 +259,8 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
         throw new Error(body.error ?? "Échec de l'import");
       }
       const { chantier_id } = await res.json();
+      // L'import remplace le brouillon auto : on le retire pour éviter un doublon.
+      await discardBrouillon();
       toast.success("Données importées dans ton agence");
       router.push(`/chantiers/${chantier_id}`);
     } catch (e) {
@@ -641,7 +661,12 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
                   {duplicate.can_open && (
                     <Button
                       variant="outline"
-                      onClick={() => router.push(`/chantiers/${duplicate.id}`)}
+                      onClick={async () => {
+                        // On utilise la fiche commune existante : le brouillon
+                        // auto fait doublon -> on le retire.
+                        await discardBrouillon();
+                        router.push(`/chantiers/${duplicate.id}`);
+                      }}
                     >
                       Ouvrir la fiche commune
                     </Button>
