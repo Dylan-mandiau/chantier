@@ -203,9 +203,20 @@ export function AnalyseClient({ photoPath, photoUrl, lat, lng }: Props) {
       if (res.ok) {
         const { chantier_id } = await res.json();
         setBrouillonId(chantier_id);
+        toast.success("Brouillon enregistré — tu le retrouveras dans Brouillons");
+        return;
       }
-    } catch {
-      // silencieux (ex. hors ligne) : la validation passera par le POST classique
+      // Échec serveur : on le REND VISIBLE au lieu de perdre le scan en silence.
+      // Cause la plus fréquente : la migration qui autorise status='brouillon'
+      // n'est pas encore appliquée côté base (contrainte CHECK qui rejette).
+      const body = await res.json().catch(() => ({}));
+      console.error("[createBrouillon] échec", res.status, body);
+      toast.error(
+        "Brouillon non enregistré (erreur serveur). Vérifie la migration ou utilise « Valider et publier »."
+      );
+    } catch (e) {
+      console.error("[createBrouillon] réseau", e);
+      // hors ligne : la validation passera par le POST classique
     }
   }
 
